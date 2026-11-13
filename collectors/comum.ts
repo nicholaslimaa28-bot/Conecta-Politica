@@ -11,6 +11,9 @@ export type Contador = { lidos: number; alterados: number };
  * Atualiza o contador de falhas seguidas da fonte (o /status alerta a partir de 3).
  */
 export async function executarTarefa(fonteId: string, tarefa: string, fn: (c: Contador) => Promise<void>) {
+  // Execuções anteriores que ficaram "rodando" (job interrompido por tempo limite) viram erro no /status
+  await db.update(s.coleta).set({ status: "erro", erro: "Execução interrompida antes de terminar (tempo limite ou falha do executor).", terminadoEm: new Date() })
+    .where(and(eq(s.coleta.fonteId, fonteId), eq(s.coleta.tarefa, tarefa), eq(s.coleta.status, "rodando")));
   const [reg] = await db.insert(s.coleta).values({ fonteId, tarefa, iniciadoEm: new Date(), status: "rodando" }).returning({ id: s.coleta.id });
   const c: Contador = { lidos: 0, alterados: 0 };
   const inicioBrutos = brutosDaExecucao.length;
@@ -43,6 +46,19 @@ export async function emLotes<T>(itens: T[], n: number, fn: (x: T) => Promise<vo
   await Promise.all(Array.from({ length: Math.min(n, itens.length) }, async () => {
     while (i < itens.length) await fn(itens[i++]);
   }));
+}
+
+/**
+ * Data inicial da coleta de autoria: a legislatura inteira na primeira carga;
+ * depois, só os últimos 30 dias (proposições novas), para a rotina diária não refazer tudo.
+ */
+export async function inicioAutoria(casa: "CD" | "SF"): Promise<string> {
+  const [r] = await db.select({ n: dsql<number>`count(*)::int` }).from(s.autoria)
+    .innerJoin(s.parlamentar, eq(s.parlamentar.id, s.autoria.parlamentarId)).where(eq(s.parlamentar.casa, casa));
+  if (!r || r.n === 0) return "2023-02-01";
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - 30);
+  return d.toISOString().slice(0, 10);
 }
 
 // ---------------- Parlamentares ----------------

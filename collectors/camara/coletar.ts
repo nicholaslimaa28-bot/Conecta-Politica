@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import * as s from "@/lib/db/schema";
 import { buscar, buscarJson, buscarTexto, ErroHttp } from "../http";
 import {
-  executarTarefa, emLotes, salvarParlamentar, mapaParlamentares, salvarEvento, idEvento, salvarProposicao,
+  executarTarefa, inicioAutoria, emLotes, salvarParlamentar, mapaParlamentares, salvarEvento, idEvento, salvarProposicao,
   salvarVotacao, substituirFilhos, salvarDespesas,
 } from "../comum";
 import {
@@ -186,8 +186,10 @@ export const presenca = (ano = Number(hojeBrasilia().slice(0, 4))) =>
 
 const TIPOS_AUTORIA = ["PL", "PLP", "PEC", "PDL", "MPV"];
 
-export const autoria = (desde = "2023-02-01") =>
+export const autoria = (desdeParam?: string) =>
   executarTarefa("camara", "autoria", async (c) => {
+    const desde = desdeParam ?? (await inicioAutoria("CD"));
+    console.log(`[autoria CD] proposições apresentadas desde ${desde}`);
     const deps = await db.select({ id: s.parlamentar.id, idFonte: s.parlamentar.idFonte }).from(s.parlamentar)
       .where(and(eq(s.parlamentar.casa, "CD"), eq(s.parlamentar.emExercicio, true)));
     const tipos = TIPOS_AUTORIA.map((t) => `siglaTipo=${t}`).join("&");

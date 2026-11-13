@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import * as s from "@/lib/db/schema";
 import { buscarJson } from "../http";
 import {
-  executarTarefa, emLotes, salvarParlamentar, mapaParlamentares, salvarEvento, idEvento, salvarProposicao,
+  executarTarefa, inicioAutoria, emLotes, salvarParlamentar, mapaParlamentares, salvarEvento, idEvento, salvarProposicao,
   salvarVotacao, substituirFilhos, salvarDespesas,
 } from "../comum";
 import {
@@ -154,8 +154,10 @@ export const despesas = (ano = Number(hojeBrasilia().slice(0, 4))) =>
 
 const TIPOS_AUTORIA = ["PL", "PLP", "PEC", "PDL"];
 
-export const autoria = (desde = "2023-02-01") =>
+export const autoria = (desdeParam?: string) =>
   executarTarefa("senado", "autoria", async (c) => {
+    const desde = desdeParam ?? (await inicioAutoria("SF"));
+    console.log(`[autoria SF] proposições apresentadas desde ${desde}`);
     const mapa = await mapaParlamentares("SF");
     const ativos = await db.select({ idFonte: s.parlamentar.idFonte }).from(s.parlamentar).where(and(eq(s.parlamentar.casa, "SF"), eq(s.parlamentar.emExercicio, true)));
     await emLotes(ativos, 2, async ({ idFonte }) => {

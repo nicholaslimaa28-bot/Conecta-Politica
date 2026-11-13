@@ -37,8 +37,9 @@ const rotinas: Record<string, string[]> = {
   frequente: ["camara:agenda", "senado:agenda", "camara:votacoes", "senado:votacoes", "planalto:agenda"],
   diaria: [
     "camara:cadastro", "senado:cadastro", "camara:despesas", "senado:despesas",
-    "camara:presenca", "camara:autoria", "senado:autoria", "camara:tramitacoes",
-    "congresso:vetos", "congresso:leis", "congresso:mpvs",
+    "congresso:vetos", "congresso:leis", "congresso:mpvs", "camara:tramitacoes",
+    // Por último, as mais lentas (513 deputados cada)
+    "camara:presenca", "senado:autoria", "camara:autoria",
   ],
 };
 rotinas.inicial = [...rotinas.diaria.slice(0, 2), ...rotinas.frequente, ...rotinas.diaria.slice(2)];
