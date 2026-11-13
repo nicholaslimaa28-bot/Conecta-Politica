@@ -158,7 +158,7 @@ export default async function PaginaParlamentar({ params, searchParams }: Props)
             {p.telefone && <span>Tel. {p.telefone}</span>}
             {p.urlPaginaOficial && <a href={p.urlPaginaOficial} target="_blank" rel="noopener">Página oficial</a>}
           </p>
-          <div className="mt-2 flex flex-wrap items-start gap-2"><BotaoSeguir alvoTipo="parlamentar" alvoId={p.id} nome={p.nome} /><Compartilhar titulo={`${p.nome} (${p.partido}-${p.uf})`} texto={`${p.nome} (${p.partido}-${p.uf}): presença, votos, proposições e gastos`} /></div>
+          <div className="mt-2 flex flex-wrap items-start gap-2"><BotaoSeguir alvoTipo="parlamentar" alvoId={p.id} nome={p.nome} /><Compartilhar titulo={`${p.nome} (${p.partido}-${p.uf})`} texto={`${p.nome} (${p.partido}-${p.uf}): presença, votos, proposições e gastos`} /><Link href={`/comparar?a=${p.slug}`} className="rounded border border-borda bg-superficie px-3 py-1.5 text-sm font-medium no-underline">⇄ Comparar com…</Link></div>
         </div>
         <nav aria-label="Seções desta página" className="w-full text-sm">
           <ul className="flex flex-wrap gap-x-4">

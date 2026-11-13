@@ -443,3 +443,25 @@ export async function atividadeDoTema(temaId: number, diasVotacoes = 60, diasLei
   });
   return { votadas: votadas.slice(0, 30), leis: leis.filter((l) => doTema(l.ementaProp ?? l.ementa)).slice(0, 30) };
 }
+
+// ---------------- Comparador ----------------
+
+export type VotoEmComum = { votacaoId: number; dataHora: Date; descricao: string; votoA: string; votoB: string; proposicao: { sigla: string; numero: number; ano: number; slug: string } | null };
+
+/** Votações nominais em que os dois parlamentares registraram voto (Sim/Não/Abstenção/Obstrução). */
+export async function votosEmComum(a: number, b: number, limite = 40) {
+  const VALIDOS = ["sim", "nao", "abstencao", "obstrucao"];
+  const linhas = await sql<VotoEmComum[]>`
+    SELECT v.id AS "votacaoId", v.data_hora AS "dataHora", v.descricao, va.tipo_voto AS "votoA", vb.tipo_voto AS "votoB",
+      CASE WHEN p.id IS NULL THEN NULL ELSE json_build_object('sigla', p.sigla, 'numero', p.numero, 'ano', p.ano, 'slug', p.slug) END AS proposicao
+    FROM voto va JOIN voto vb ON vb.votacao_id = va.votacao_id AND vb.parlamentar_id = ${b}
+    JOIN votacao v ON v.id = va.votacao_id LEFT JOIN proposicao p ON p.id = v.proposicao_id
+    WHERE va.parlamentar_id = ${a} AND va.tipo_voto IN ${sql(VALIDOS)} AND vb.tipo_voto IN ${sql(VALIDOS)}
+    ORDER BY v.data_hora DESC`;
+  return { total: linhas.length, iguais: linhas.filter((l) => l.votoA === l.votoB).length, recentes: linhas.slice(0, limite) };
+}
+
+export async function totalGastoNoAno(parlamentarId: number, ano: number): Promise<number | null> {
+  const [r] = await sql<{ t: string | null }[]>`SELECT sum(valor)::text AS t FROM despesa WHERE parlamentar_id = ${parlamentarId} AND ano = ${ano}`;
+  return r?.t == null ? null : Number(r.t);
+}

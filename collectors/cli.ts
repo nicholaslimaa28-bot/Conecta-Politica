@@ -29,6 +29,19 @@ const tarefas: Record<string, Tarefa> = {
   "senado:cadastro": () => senado.cadastro(),
   "senado:agenda": (de, ate) => senado.agenda(de, ate),
   "senado:votacoes": (de, ate) => senado.votacoes(de, ate),
+  // Carga histórica do ano (ou de um ano informado), mês a mês — a presença do Senado é contada por votação nominal
+  "senado:votacoes-ano": async (ano) => {
+    const a = Number(ano ?? hojeBrasilia().slice(0, 4));
+    let pior = "ok";
+    for (let m = 1; m <= 12; m++) {
+      const de = `${a}-${String(m).padStart(2, "0")}-01`;
+      if (de > hojeBrasilia()) break;
+      const ate = somarDias(m === 12 ? `${a + 1}-01-01` : `${a}-${String(m + 1).padStart(2, "0")}-01`, -1);
+      const st = await senado.votacoes(de, ate);
+      if (st !== "ok") pior = st as string;
+    }
+    return pior;
+  },
   "senado:despesas": (ano) => senado.despesas(ano ? Number(ano) : undefined),
   "senado:autoria": (desde) => senado.autoria(desde),
   "senado:tramitacoes": (limite) => senado.tramitacoes(limite ? Number(limite) : undefined),
@@ -51,7 +64,7 @@ const rotinas: Record<string, string[]> = {
   ],
 };
 rotinas.semanal = ["camara:votacoes30", "alertas:enviar"];
-rotinas.inicial = [...rotinas.diaria.slice(0, 2), ...rotinas.frequente, ...rotinas.diaria.slice(2)];
+rotinas.inicial = [...rotinas.diaria.slice(0, 2), ...rotinas.frequente, "senado:votacoes-ano", ...rotinas.diaria.slice(2)];
 
 const [nome, ...args] = process.argv.slice(2);
 const lista = nome && rotinas[nome] ? rotinas[nome] : nome && tarefas[nome] ? [nome] : null;
