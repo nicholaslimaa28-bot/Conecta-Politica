@@ -47,3 +47,37 @@ export function* registrosCsv(texto: string, separador = ";"): Generator<Record<
     yield r;
   }
 }
+
+// ---------- Geração de CSV (exportação) ----------
+
+type Valor = string | number | boolean | Date | null | undefined;
+
+/** Escapa um campo: aspas duplas, e o campo entre aspas se tiver separador, aspas ou quebra de linha. */
+function campo(v: Valor, separador: string): string {
+  if (v == null) return "";
+  let s: string;
+  // Datas no horário de Brasília, formato "AAAA-MM-DD HH:MM" (ordenável e legível no Excel)
+  if (v instanceof Date) s = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(v);
+  else if (typeof v === "number") s = Number.isInteger(v) ? String(v) : v.toFixed(2).replace(".", ","); // vírgula decimal (Excel em português)
+  else s = String(v);
+  // Evita que planilhas interpretem o texto como fórmula (=, +, -, @ no início)
+  if (/^[=+\-@]/.test(s) && typeof v === "string") s = "'" + s;
+  return /["\n\r]/.test(s) || s.includes(separador) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** Monta um CSV com BOM (acentos corretos no Excel) e separador ";". */
+export function gerarCsv(colunas: { chave: string; titulo: string }[], linhas: Record<string, Valor>[], separador = ";"): string {
+  const cab = colunas.map((c) => campo(c.titulo, separador)).join(separador);
+  const corpo = linhas.map((l) => colunas.map((c) => campo(l[c.chave], separador)).join(separador));
+  return "﻿" + [cab, ...corpo].join("\r\n") + "\r\n";
+}
+
+export function respostaCsv(nomeArquivo: string, conteudo: string): Response {
+  return new Response(conteudo, {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${nomeArquivo.replace(/[^a-z0-9._-]/gi, "_")}"`,
+      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+    },
+  });
+}

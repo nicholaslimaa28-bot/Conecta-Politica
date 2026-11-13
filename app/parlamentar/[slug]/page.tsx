@@ -207,6 +207,7 @@ export default async function PaginaParlamentar({ params, searchParams }: Props)
         <p className="mt-2 text-xs text-suave">
           Só aparecem <Termo id="votacaoNominal">votações nominais</Termo>. O partido considerado é o da data do voto. &ldquo;Votou diferente&rdquo; compara apenas votos Sim/Não com orientações Sim/Não.
         </p>
+        <p className="mt-2 text-sm"><a href={`/api/exportar/votos?parlamentar=${p.slug}`} download>⬇ Baixar todos os votos (CSV)</a></p>
         <Fonte orgao={p.casa === "CD" ? "Câmara dos Deputados — votações" : "Senado Federal — votações"} url={p.casa === "CD" ? "https://dadosabertos.camara.leg.br/swagger/api.html" : "https://legis.senado.leg.br/dadosabertos"} em={colVot} />
       </Bloco>
 
@@ -253,8 +254,9 @@ export default async function PaginaParlamentar({ params, searchParams }: Props)
             <p className="mt-2 text-xs text-suave">Valores negativos são estornos ou compensações publicados pela própria Casa. A cota tem teto mensal diferente por estado.</p>
           </>
         ) : <p className="text-suave">Nenhum gasto publicado para {ano} até agora.</p>}
-        <p className="mt-2 text-sm">
+        <p className="mt-2 flex flex-wrap gap-x-4 text-sm">
           {[anoAtual - 1, anoAtual].filter((a) => a !== ano).map((a) => <Link key={a} href={`/parlamentar/${p.slug}?ano=${a}#gastos`}>Ver {a}</Link>)}
+          {categorias.length > 0 && <a href={`/api/exportar/gastos?parlamentar=${p.slug}&ano=${ano}`} download>⬇ Baixar os documentos de {ano} (CSV)</a>}
         </p>
         <Fonte
           orgao={p.casa === "CD" ? "Câmara dos Deputados — Cota para o Exercício da Atividade Parlamentar" : "Senado Federal — CEAPS"}

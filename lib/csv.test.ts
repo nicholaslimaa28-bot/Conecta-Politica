@@ -15,3 +15,23 @@ describe("leitor de CSV", () => {
     expect([...registrosCsv('"id";"nome"\n"1";"Ana"\n')]).toEqual([{ id: "1", nome: "Ana" }]);
   });
 });
+
+import { gerarCsv } from "./csv";
+
+describe("geração de CSV", () => {
+  it("escapa, usa vírgula decimal, BOM e protege contra fórmulas", () => {
+    const csv = gerarCsv(
+      [{ chave: "a", titulo: "Texto" }, { chave: "b", titulo: "Valor" }],
+      [{ a: 'Diz "olá"; tchau', b: 1234.5 }, { a: "=SOMA(A1)", b: 10 }, { a: null, b: null }],
+    );
+    expect(csv.startsWith("﻿Texto;Valor\r\n")).toBe(true);
+    expect(csv).toContain('"Diz ""olá""; tchau";1234,50');
+    expect(csv).toContain("'=SOMA(A1);10");
+    expect(csv.endsWith(";\r\n")).toBe(true);
+    // ida e volta com o leitor do próprio projeto
+    const linhas = [...linhasCsv(csv)];
+    expect(linhas[1]).toEqual(['Diz "olá"; tchau', "1234,50"]);
+    // data em Brasília
+    expect(gerarCsv([{ chave: "d", titulo: "d" }], [{ d: new Date("2026-11-12T23:29:28Z") }])).toContain("2026-11-12 20:29");
+  });
+});

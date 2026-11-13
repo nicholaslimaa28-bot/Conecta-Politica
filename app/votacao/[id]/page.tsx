@@ -72,6 +72,7 @@ export default async function PaginaVotacao({ params }: Props) {
             </ul>
           </details>
         )) : <p className="text-suave">Votos individuais não publicados para esta votação.</p>}
+        {votos.length > 0 && <p className="mt-2 text-sm"><a href={`/api/exportar/votacao?id=${v.id}`} download>⬇ Baixar os votos (CSV)</a></p>}
         {v.casa === "CD" && <p className="mt-2 text-xs text-suave">A Câmara publica só quem votou; quem não aparece não registrou voto (o motivo não é informado aqui).</p>}
       </section>
       <Fonte orgao={v.casa === "CD" ? "Câmara dos Deputados — votações" : "Senado Federal — votações nominais"} url={v.fonteUrl} em={v.coletadoEm} />

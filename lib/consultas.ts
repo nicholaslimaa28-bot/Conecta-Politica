@@ -465,3 +465,9 @@ export async function totalGastoNoAno(parlamentarId: number, ano: number): Promi
   const [r] = await sql<{ t: string | null }[]>`SELECT sum(valor)::text AS t FROM despesa WHERE parlamentar_id = ${parlamentarId} AND ano = ${ano}`;
   return r?.t == null ? null : Number(r.t);
 }
+
+export async function despesasDoAno(parlamentarId: number, ano: number) {
+  return sql<{ data: string | null; mes: number; categoria: string; fornecedor: string | null; cnpj: string | null; valor: string; url: string | null }[]>`
+    SELECT data_documento::text AS data, mes, categoria, fornecedor_nome AS fornecedor, fornecedor_cnpj AS cnpj, valor::text AS valor, url_documento AS url
+    FROM despesa WHERE parlamentar_id = ${parlamentarId} AND ano = ${ano} ORDER BY mes, data_documento NULLS LAST`;
+}
