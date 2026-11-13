@@ -1,4 +1,4 @@
-# Três Poderes Hoje (nome provisório)
+# Conecta Política
 
 [![Testes](https://github.com/nicholaslimaa28-bot/Conecta-Politica/actions/workflows/testes.yml/badge.svg)](https://github.com/nicholaslimaa28-bot/Conecta-Politica/actions/workflows/testes.yml)
 [![Coleta](https://github.com/nicholaslimaa28-bot/Conecta-Politica/actions/workflows/coleta.yml/badge.svg)](https://github.com/nicholaslimaa28-bot/Conecta-Politica/actions/workflows/coleta.yml)

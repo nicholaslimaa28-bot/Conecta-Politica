@@ -10,7 +10,7 @@ const VERSAO = "0.1";
 export function userAgent(): string {
   const site = process.env.SITE_URL ?? "http://localhost:3000";
   const email = process.env.COLETOR_EMAIL_CONTATO;
-  return `TresPoderesHoje/${VERSAO} (+${site}${email ? `; ${email}` : ""})`;
+  return `ConectaPolitica/${VERSAO} (+${site}${email ? `; ${email}` : ""})`;
 }
 
 /** Intervalo mínimo entre requisições ao mesmo servidor (ms). 500 ms = no máximo 2 req/s. */

@@ -6,7 +6,7 @@ import { Preferencias } from "@/components/Preferencias";
 import { BuscaRapida } from "@/components/BuscaRapida";
 
 export const metadata: Metadata = {
-  title: { default: "Três Poderes Hoje", template: "%s · Três Poderes Hoje" },
+  title: { default: "Conecta Política", template: "%s · Conecta Política" },
   description: "O que acontece hoje na Câmara, no Senado, no Executivo e no Judiciário, com dados oficiais, fonte e horário.",
   metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
 };
@@ -36,7 +36,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <header className="border-b border-borda bg-superficie">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-3">
             <Link href="/" className="mr-auto font-bold text-texto no-underline" style={{ color: "var(--texto)" }}>
-              Três Poderes Hoje
+              Conecta Política
             </Link>
             <Preferencias />
             <nav aria-label="Principal" className="w-full">

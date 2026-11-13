@@ -1,4 +1,4 @@
-# Portal "Três Poderes Hoje" (nome provisório) — Especificação
+# Conecta Política (antes "Três Poderes Hoje") — Especificação
 
 > Especificação original do projeto. Achados da Fase 0 que ajustam este texto estão em [`docs/fontes.md`](docs/fontes.md) e [`docs/esquema-banco.md`](docs/esquema-banco.md).
 
