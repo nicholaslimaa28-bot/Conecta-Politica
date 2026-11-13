@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { verificarSuporte, permissaoNotificacao, assinaturaAtual, assinar, chamarApi, type Suporte } from "@/lib/push-cliente";
 
-type Props = { alvoTipo: "parlamentar" | "proposicao" | "resumo"; alvoId: number; nome: string };
+type Props = { alvoTipo: "parlamentar" | "proposicao" | "resumo" | "admin"; alvoId: number; nome: string; codigo?: string };
 
 const AJUDA: Record<Exclude<Suporte, "ok" | "sem-chave">, string> = {
   "ios-instalar": "No iPhone, os alertas funcionam com o site na Tela de Início: toque em Compartilhar → Adicionar à Tela de Início e abra por lá.",
@@ -12,7 +12,7 @@ const AJUDA: Record<Exclude<Suporte, "ok" | "sem-chave">, string> = {
   "bloqueado": "As notificações deste site estão bloqueadas. Libere nas configurações do navegador (ícone de cadeado ao lado do endereço).",
 };
 
-export function BotaoSeguir({ alvoTipo, alvoId, nome }: Props) {
+export function BotaoSeguir({ alvoTipo, alvoId, nome, codigo }: Props) {
   const [suporte, setSuporte] = useState<Suporte | null>(null);
   const [seguindo, setSeguindo] = useState(false);
   const [ocupado, setOcupado] = useState(false);
@@ -41,16 +41,18 @@ export function BotaoSeguir({ alvoTipo, alvoId, nome }: Props) {
         const sub = await assinaturaAtual();
         if (sub) await chamarApi({ acao: "deixar", endpoint: sub.endpoint, alvoTipo, alvoId });
         setSeguindo(false);
-        setMensagem(alvoTipo === "resumo" ? `Você não vai mais receber ${nome}.` : `Você deixou de seguir ${nome}.`);
+        setMensagem(alvoTipo === "resumo" || alvoTipo === "admin" ? `Você não vai mais receber ${nome}.` : `Você deixou de seguir ${nome}.`);
       } else {
         const sub = await assinar();
-        await chamarApi({ acao: "seguir", assinatura: sub.toJSON(), alvoTipo, alvoId });
+        await chamarApi({ acao: "seguir", assinatura: sub.toJSON(), alvoTipo, alvoId, codigo });
         setSeguindo(true);
-        setMensagem(alvoTipo === "resumo" ? `Pronto! Você vai receber ${nome} neste aparelho.` : `Pronto! Você vai receber avisos sobre ${nome} neste aparelho.`);
+        setMensagem(alvoTipo === "resumo" || alvoTipo === "admin" ? `Pronto! Você vai receber ${nome} neste aparelho.` : `Pronto! Você vai receber avisos sobre ${nome} neste aparelho.`);
       }
     } catch (e) {
-      setMensagem((e as Error).message === "permissao-negada"
+      const msg = (e as Error).message;
+      setMensagem(msg === "permissao-negada"
         ? "Sem permissão para notificações, não conseguimos avisar. Você pode liberar nas configurações do navegador."
+        : msg.includes("código") ? "Código de administrador inválido."
         : "Não foi possível concluir agora. Tente de novo em instantes.");
       if ((await permissaoNotificacao()) === "denied") setSuporte("bloqueado");
     } finally {
@@ -63,7 +65,7 @@ export function BotaoSeguir({ alvoTipo, alvoId, nome }: Props) {
       {suporte === "ok" ? (
         <button type="button" onClick={alternar} disabled={ocupado} aria-pressed={seguindo}
           className={`rounded border px-3 py-1.5 font-medium ${seguindo ? "border-legislativo bg-legislativo/10 text-legislativo" : "border-borda bg-superficie"}`}>
-          {ocupado ? "Aguarde…" : alvoTipo === "resumo" ? (seguindo ? "✓ Recebendo" : "🔔 Receber") : seguindo ? "✓ Seguindo" : "🔔 Seguir"}
+          {ocupado ? "Aguarde…" : alvoTipo === "resumo" || alvoTipo === "admin" ? (seguindo ? "✓ Recebendo" : "🔔 Receber") : seguindo ? "✓ Seguindo" : "🔔 Seguir"}
         </button>
       ) : (
         <p className="max-w-md text-suave">🔔 {AJUDA[suporte]}</p>

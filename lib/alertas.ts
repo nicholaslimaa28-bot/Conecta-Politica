@@ -1,7 +1,7 @@
 // Regras dos alertas (Fase 4A): validação das assinaturas de Web Push e texto de cada aviso.
 // Funções puras, testadas em lib/alertas.test.ts. Os avisos são neutros: só fatos, com link.
 
-export const TIPOS_ALVO = ["parlamentar", "proposicao", "resumo"] as const;
+export const TIPOS_ALVO = ["parlamentar", "proposicao", "resumo", "admin"] as const;
 /** Resumo "Brasília Hoje": alvoId 1 = edição da manhã (7h), 2 = edição da noite (20h). */
 export const RESUMO_MANHA = 1, RESUMO_NOITE = 2;
 export type TipoAlvo = (typeof TIPOS_ALVO)[number];
@@ -35,6 +35,7 @@ export function validarAlvo(tipo: unknown, id: unknown): { tipo: TipoAlvo; id: n
   const n = Number(id);
   if (!Number.isInteger(n) || n <= 0) return null;
   if (tipo === "resumo" && n !== RESUMO_MANHA && n !== RESUMO_NOITE) return null;
+  if (tipo === "admin" && n !== 1) return null;
   return { tipo: tipo as TipoAlvo, id: n };
 }
 
@@ -89,6 +90,25 @@ export function avisoVeto(p: NonNullable<Prop>, veto: { numero: number; ano: num
     corpo: `Veto ${tipo} nº ${veto.numero}/${veto.ano}`,
     url: `/proposicao/${p.slug}`,
   };
+}
+
+const NOME_FONTE: Record<string, string> = { camara: "Câmara", senado: "Senado", planalto: "Planalto", alertas: "Envio de alertas" };
+
+/** Aviso ao administrador quando uma fonte acumula falhas seguidas (ou volta a funcionar). */
+export function avisoFalha(tipo: "fonte_falhou" | "fonte_recuperada", d: { fonte: string; tarefa: string; falhas: number; erro: string | null }): Aviso {
+  const nome = NOME_FONTE[d.fonte] ?? d.fonte;
+  return tipo === "fonte_falhou"
+    ? { titulo: `⚠️ Coleta com falha: ${nome}`, corpo: corta(`${d.falhas} falhas seguidas em ${d.tarefa}${d.erro ? ` — ${d.erro}` : ""}`), url: "/status" }
+    : { titulo: `✅ Coleta normalizada: ${nome}`, corpo: `${d.tarefa} voltou a funcionar depois de ${d.falhas} falhas seguidas.`, url: "/status" };
+}
+
+/** Compara o código de administrador sem vazar informação pelo tempo de resposta. */
+export function codigoAdminValido(informado: unknown, esperado: string | undefined): boolean {
+  if (typeof informado !== "string" || !esperado || esperado.length < 16) return false;
+  const a = new TextEncoder().encode(informado), b = new TextEncoder().encode(esperado);
+  let dif = a.length ^ b.length;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) dif |= (a[i] ?? 0) ^ (b[i] ?? 0);
+  return dif === 0;
 }
 
 /** Muitos avisos para o mesmo aparelho numa rodada viram um resumo, para não encher o celular. */

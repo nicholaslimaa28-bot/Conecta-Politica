@@ -6,6 +6,16 @@ import { brutosDaExecucao, hashDe } from "./http";
 
 export type Contador = { lidos: number; alterados: number };
 
+/** A partir de quantas falhas seguidas o administrador é avisado. */
+export const LIMITE_FALHAS = 3;
+
+/** Decide se a mudança no contador de falhas gera aviso: ao atingir o limite, ou ao normalizar depois dele. */
+export function eventoDeFalha(anteriores: number, agora: number): "fonte_falhou" | "fonte_recuperada" | null {
+  if (agora === LIMITE_FALHAS) return "fonte_falhou";
+  if (agora === 0 && anteriores >= LIMITE_FALHAS) return "fonte_recuperada";
+  return null;
+}
+
 /**
  * Executa uma tarefa de coleta registrando início, fim, contagens e erro.
  * Atualiza o contador de falhas seguidas da fonte (o /status alerta a partir de 3).
@@ -34,8 +44,19 @@ export async function executarTarefa(fonteId: string, tarefa: string, fn: (c: Co
     })));
   }
   await db.update(s.coleta).set({ terminadoEm: new Date(), status, itensLidos: c.lidos, itensAlterados: c.alterados, erro }).where(eq(s.coleta.id, reg.id));
-  if (status === "ok") await db.update(s.fonte).set({ falhasSeguidas: 0 }).where(eq(s.fonte.id, fonteId));
-  else await db.update(s.fonte).set({ falhasSeguidas: dsql`${s.fonte.falhasSeguidas} + 1` }).where(eq(s.fonte.id, fonteId));
+  // Contador de falhas seguidas da fonte. Ao chegar a LIMITE_FALHAS, e quando a fonte volta depois disso,
+  // registra uma mudança que o disparador de alertas envia ao administrador.
+  const [antes] = await db.select({ n: s.fonte.falhasSeguidas }).from(s.fonte).where(eq(s.fonte.id, fonteId));
+  const anteriores = antes?.n ?? 0;
+  const agora = status === "ok" ? 0 : anteriores + 1;
+  await db.update(s.fonte).set({ falhasSeguidas: agora }).where(eq(s.fonte.id, fonteId));
+  const evento = eventoDeFalha(anteriores, agora);
+  if (evento) {
+    await db.insert(s.mudanca).values({
+      tipo: evento, entidade: "fonte", entidadeId: 0,
+      dados: { fonte: fonteId, tarefa, falhas: evento === "fonte_falhou" ? agora : anteriores, erro: erro?.split("\n")[0]?.slice(0, 300) ?? null },
+    });
+  }
   console.log(`[${fonteId}/${tarefa}] ${status}: ${c.lidos} lidos, ${c.alterados} alterados`);
   return status;
 }

@@ -25,6 +25,8 @@ Site de transparência que reúne, em linguagem simples, o que acontece hoje nos
 | Judiciário (STF, DataJud) | Fase 3 — card com links oficiais |
 | Alertas: seguir parlamentar/proposição e receber notificação no celular (Web Push, sem cadastro) | ✅ Fase 4A |
 | Resumo "Brasília Hoje" (7h e 20h), com aviso opcional no celular | ✅ |
+| Prévia para WhatsApp/redes (imagens Open Graph) e botão Compartilhar | ✅ |
+| Aviso ao administrador quando uma coleta falha 3 vezes seguidas | ✅ |
 | Alertas por e-mail e Telegram | Fases 4B–4C |
 
 ## Arquitetura
@@ -50,6 +52,7 @@ docs/              fontes.md (relatório das fontes) e esquema-banco.md
 - Só aceitamos endpoints dos serviços de push dos navegadores (Google, Mozilla, Apple, Microsoft).
 - Chaves: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (Vercel e variável do GitHub) e `VAPID_PRIVATE_KEY` (**apenas** secret do GitHub — o site não precisa dela). Gerar com `npx web-push generate-vapid-keys`.
 - No iPhone, as notificações exigem o site adicionado à Tela de Início (iOS 16.4+).
+- **Avisos de falha ao administrador:** quando uma fonte acumula 3 falhas seguidas, é registrada a mudança `fonte_falhou` (e `fonte_recuperada` quando volta); o disparador envia para quem se inscreveu em `/admin/alertas` com o código `ADMIN_ALERTAS_CODIGO` (variável secreta na Vercel).
 
 ## Rodando localmente
 

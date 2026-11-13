@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validarAssinatura, validarAlvo, avisoVotacaoProposicao, avisoVotoParlamentar, avisoSituacao, avisoNorma, avisoVeto, agrupar } from "./alertas";
+import { codigoAdminValido, avisoFalha, validarAssinatura, validarAlvo, avisoVotacaoProposicao, avisoVotoParlamentar, avisoSituacao, avisoNorma, avisoVeto, agrupar } from "./alertas";
 
 const chaves = { p256dh: "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM", auth: "tBHItJI5svbpez7KI4CCXg" };
 
@@ -52,5 +52,28 @@ describe("texto dos avisos", () => {
     const a = { titulo: "x", corpo: "y", url: "/z" };
     expect(agrupar([a, a])).toHaveLength(2);
     expect(agrupar([a, a, a, a])).toEqual([{ titulo: "4 novidades sobre o que você segue", corpo: "x · x · x", url: "/alertas" }]);
+  });
+});
+
+describe("avisos ao administrador", () => {
+  it("texto de falha e de recuperação", () => {
+    expect(avisoFalha("fonte_falhou", { fonte: "senado", tarefa: "votacoes", falhas: 3, erro: "HTTP 503 em https://legis.senado.leg.br/x" }))
+      .toEqual({ titulo: "⚠️ Coleta com falha: Senado", corpo: "3 falhas seguidas em votacoes — HTTP 503 em https://legis.senado.leg.br/x", url: "/status" });
+    expect(avisoFalha("fonte_recuperada", { fonte: "camara", tarefa: "agenda", falhas: 5, erro: null }).titulo).toBe("✅ Coleta normalizada: Câmara");
+  });
+
+  it("código de administrador", () => {
+    const certo = "a".repeat(32);
+    expect(codigoAdminValido(certo, certo)).toBe(true);
+    expect(codigoAdminValido("a".repeat(31), certo)).toBe(false);
+    expect(codigoAdminValido("b".repeat(32), certo)).toBe(false);
+    expect(codigoAdminValido(certo, undefined)).toBe(false);   // sem código configurado: ninguém entra
+    expect(codigoAdminValido("curto", "curto")).toBe(false);    // código fraco não vale
+    expect(codigoAdminValido(123, certo)).toBe(false);
+  });
+
+  it("alvo admin só com id 1", () => {
+    expect(validarAlvo("admin", 1)).toEqual({ tipo: "admin", id: 1 });
+    expect(validarAlvo("admin", 2)).toBeNull();
   });
 });

@@ -4,7 +4,7 @@ import webpush from "web-push";
 import { sql } from "@/lib/db";
 import { executarTarefa } from "../comum";
 import {
-  avisoVotacaoProposicao, avisoVotoParlamentar, avisoSituacao, avisoNorma, avisoVeto, agrupar, type Aviso,
+  avisoVotacaoProposicao, avisoVotoParlamentar, avisoSituacao, avisoNorma, avisoVeto, avisoFalha, agrupar, type Aviso,
 } from "@/lib/alertas";
 
 type Mudanca = { id: number; tipo: string; entidade: string; entidadeId: number; dados: Record<string, unknown>; detectadoEm: Date };
@@ -14,7 +14,7 @@ type Destino = { assinaturaId: number; mudancaId: number; aviso: Aviso };
 /** Mudanças mais antigas que isso não geram aviso (ex.: as da carga inicial). */
 const IDADE_MAXIMA_H = 48;
 
-async function seguidores(tipo: "parlamentar" | "proposicao", id: number | null): Promise<number[]> {
+async function seguidores(tipo: "parlamentar" | "proposicao" | "admin", id: number | null): Promise<number[]> {
   if (!id) return [];
   const r = await sql<{ a: number }[]>`SELECT assinatura_id AS a FROM inscricao WHERE alvo_tipo = ${tipo} AND alvo_id = ${id}`;
   return r.map((x) => x.a);
@@ -57,6 +57,8 @@ async function destinosDe(m: Mudanca): Promise<Destino[]> {
       SELECT numero, ano, total, resultado, proposicao_id AS "proposicaoId" FROM veto WHERE id = ${m.entidadeId}`;
     const p = v ? await proposicao(v.proposicaoId) : null;
     if (v && p) para(await seguidores("proposicao", v.proposicaoId), avisoVeto(p, v, m.tipo === "novo_veto"));
+  } else if (m.tipo === "fonte_falhou" || m.tipo === "fonte_recuperada") {
+    para(await seguidores("admin", 1), avisoFalha(m.tipo, m.dados as { fonte: string; tarefa: string; falhas: number; erro: string | null }));
   }
   // novo_evento / evento_mudou: não geram aviso nesta fase (seriam dezenas por dia)
   return out;
