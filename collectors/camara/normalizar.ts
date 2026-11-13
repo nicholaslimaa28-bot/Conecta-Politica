@@ -301,3 +301,30 @@ export function lerPresencaPerfil(html: string) {
   });
   return resultado;
 }
+
+// ---------- Arquivos anuais de proposições e autores (carga completa de autoria) ----------
+
+/** Linha de proposicoes-{ano}.csv → campos da proposição. Devolve null para tipos fora da lista. */
+export function proposicaoDoArquivo(r: Record<string, string>, tipos: string[], agora: Date) {
+  const sigla = r.siglaTipo?.trim();
+  if (!sigla || !tipos.includes(sigla)) return null;
+  const numero = Number(r.numero), ano = Number(r.ano), id = Number(r.id);
+  if (!numero || !ano || !id) return null;
+  return {
+    sigla, numero, ano,
+    idCamara: id,
+    ementa: limpar(r.ementa),
+    situacaoCamara: limpar(r.ultimoStatus_descricaoSituacao),
+    dataApresentacao: r.dataApresentacao ? r.dataApresentacao.slice(0, 10) : null,
+    urlInteiroTeor: r.urlInteiroTeor || null,
+    slug: slugProposicao(sigla, numero, ano),
+    atualizadoEm: agora,
+  };
+}
+
+/** Linha de proposicoesAutores-{ano}.csv → par (proposição, deputado). Ignora autores que não são deputados. */
+export function autorDoArquivo(r: Record<string, string>) {
+  const idProposicao = Number(r.idProposicao), idDeputado = Number(r.idDeputadoAutor);
+  if (!idProposicao || !idDeputado) return null;
+  return { idProposicao, idDeputado, proponente: r.proponente === "1" };
+}

@@ -6,14 +6,16 @@ import * as s from "@/lib/db/schema";
 import { buscar, buscarJson, buscarTexto, ErroHttp } from "../http";
 import {
   executarTarefa, inicioAutoria, emLotes, salvarParlamentar, mapaParlamentares, salvarEvento, idEvento, salvarProposicao,
-  salvarVotacao, substituirFilhos, salvarDespesas,
+  salvarVotacao, substituirFilhos, salvarDespesas, salvarProposicoesEmLote,
 } from "../comum";
 import {
   API, normalizarDeputado, normalizarEvento, normalizarPauta, normalizarVotacao, normalizarOrientacoes,
   normalizarProposicao, normalizarTramitacoes, normalizarDespesa, lerPresencaPerfil,
+  proposicaoDoArquivo, autorDoArquivo,
 } from "./normalizar";
 import { hojeBrasilia, somarDias } from "@/lib/tempo";
 import { slugProposicao, limpar } from "@/lib/texto";
+import { registrosCsv } from "@/lib/csv";
 
 type Pagina<T> = { dados: T[]; links: { rel: string; href: string }[] };
 
@@ -186,9 +188,47 @@ export const presenca = (ano = Number(hojeBrasilia().slice(0, 4))) =>
 
 const TIPOS_AUTORIA = ["PL", "PLP", "PEC", "PDL", "MPV"];
 
+/**
+ * Carga completa da autoria pelos arquivos anuais da Câmara (proposicoes-{ano}.csv e
+ * proposicoesAutores-{ano}.csv): 2 downloads por ano em vez de milhares de consultas à API,
+ * que a partir do exterior não terminam no tempo limite do agendador.
+ */
+async function autoriaPorArquivos(desdeAno: number, c: { lidos: number; alterados: number }) {
+  const mapaDep = await mapaParlamentares("CD");
+  const base = "https://dadosabertos.camara.leg.br/arquivos";
+  for (let ano = desdeAno; ano <= Number(hojeBrasilia().slice(0, 4)); ano++) {
+    const texto = async (arq: string) =>
+      (await buscar(`${base}/${arq}/csv/${arq}-${ano}.csv`, { accept: "text/csv", timeoutMs: 600_000 })).corpo.toString("utf8");
+    const agora = new Date();
+    const props = new Map<number, NonNullable<ReturnType<typeof proposicaoDoArquivo>>>();
+    for (const r of registrosCsv(await texto("proposicoes"))) {
+      const p = proposicaoDoArquivo(r, TIPOS_AUTORIA, agora);
+      if (p) props.set(p.idCamara, p);
+    }
+    const pares: { idCamara: number; parlamentarId: number; proponente: boolean }[] = [];
+    for (const r of registrosCsv(await texto("proposicoesAutores"))) {
+      const a = autorDoArquivo(r);
+      const parlamentarId = a ? mapaDep.get(a.idDeputado) : undefined;
+      if (a && parlamentarId && props.has(a.idProposicao)) pares.push({ idCamara: a.idProposicao, parlamentarId, proponente: a.proponente });
+    }
+    // Só grava proposições com algum deputado conhecido como autor
+    const usadas = [...new Set(pares.map((x) => x.idCamara))].map((id) => props.get(id)!);
+    const ids = await salvarProposicoesEmLote(usadas);
+    const linhas = pares.flatMap((x) => (ids.has(x.idCamara) ? [{ proposicaoId: ids.get(x.idCamara)!, parlamentarId: x.parlamentarId, proponente: x.proponente }] : []));
+    for (let i = 0; i < linhas.length; i += 1000) await db.insert(s.autoria).values(linhas.slice(i, i + 1000)).onConflictDoNothing();
+    console.log(`[autoria CD] ${ano}: ${usadas.length} proposições, ${linhas.length} autorias`);
+    c.lidos += linhas.length;
+  }
+}
+
 export const autoria = (desdeParam?: string) =>
   executarTarefa("camara", "autoria", async (c) => {
     const desde = desdeParam ?? (await inicioAutoria("CD"));
+    // Carga completa (legislatura inteira): arquivos anuais. Atualização diária: API, só o período recente.
+    if (!desdeParam && desde.endsWith("-02-01") && Number(desde.slice(0, 4)) <= 2023) {
+      console.log(`[autoria CD] carga completa pelos arquivos anuais desde ${desde.slice(0, 4)}`);
+      return autoriaPorArquivos(Number(desde.slice(0, 4)), c);
+    }
     console.log(`[autoria CD] proposições apresentadas desde ${desde}`);
     const deps = await db.select({ id: s.parlamentar.id, idFonte: s.parlamentar.idFonte }).from(s.parlamentar)
       .where(and(eq(s.parlamentar.casa, "CD"), eq(s.parlamentar.emExercicio, true)));

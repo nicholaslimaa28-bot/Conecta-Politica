@@ -189,3 +189,25 @@ export async function salvarDespesas(todas: (typeof s.despesa.$inferInsert)[]) {
     });
   }
 }
+
+/**
+ * Grava muitas proposições de uma vez (carga a partir de arquivos anuais). Campos nulos não apagam
+ * o que já existe. Não registra mudanças (uso só em carga inicial). Devolve o mapa idCamara → id interno.
+ */
+export async function salvarProposicoesEmLote(todas: DadosProposicao[]): Promise<Map<number, number>> {
+  const unicas = [...new Map(todas.map((p) => [`${p.sigla}|${p.numero}|${p.ano}`, p])).values()];
+  const mapa = new Map<number, number>();
+  const manter = (col: string) => dsql.raw(`coalesce(excluded.${col}, proposicao.${col})`);
+  for (let i = 0; i < unicas.length; i += 500) {
+    const lote = unicas.slice(i, i + 500);
+    const r = await db.insert(s.proposicao).values(lote).onConflictDoUpdate({
+      target: [s.proposicao.sigla, s.proposicao.numero, s.proposicao.ano],
+      set: {
+        idCamara: manter("id_camara"), ementa: manter("ementa"), situacaoCamara: manter("situacao_camara"),
+        dataApresentacao: manter("data_apresentacao"), urlInteiroTeor: manter("url_inteiro_teor"),
+      },
+    }).returning({ id: s.proposicao.id, idCamara: s.proposicao.idCamara });
+    for (const x of r) if (x.idCamara) mapa.set(x.idCamara, x.id);
+  }
+  return mapa;
+}

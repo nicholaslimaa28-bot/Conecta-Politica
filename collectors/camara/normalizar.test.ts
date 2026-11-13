@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { registrosCsv } from "@/lib/csv";
 import {
+  proposicaoDoArquivo, autorDoArquivo,
   normalizarDeputado, normalizarEvento, normalizarPauta, normalizarVotacao, normalizarOrientacoes,
   normalizarProposicao, normalizarTramitacoes, normalizarDespesa, limparNomeFornecedor, lerPresencaPerfil,
   statusEvento, normalizarTipoVoto,
@@ -131,5 +133,23 @@ describe("presença (perfil)", () => {
 
   it("devolve null quando o bloco não existe", () => {
     expect(lerPresencaPerfil("<html></html>")).toEqual({ plenario: null, comissoes: null });
+  });
+});
+
+describe("arquivos anuais (autoria)", () => {
+  const ler = (n: string) => [...registrosCsv(readFileSync(`fixtures/camara/${n}`, "utf8"))];
+
+  it("lê proposições do arquivo filtrando tipos", () => {
+    const linhas = ler("proposicoes_amostra.csv");
+    expect(linhas).toHaveLength(3);
+    const p = proposicaoDoArquivo(linhas[0], ["PL"], agora)!;
+    expect(p).toMatchObject({ sigla: "PL", numero: 1051, ano: 2026, idCamara: 281460, slug: "pl-1051-2026", situacaoCamara: "Aguardando Apreciação pelo Senado Federal" });
+    expect(proposicaoDoArquivo(linhas[0], ["PEC"], agora)).toBeNull();
+  });
+
+  it("lê autores deputados", () => {
+    const a = autorDoArquivo(ler("proposicoesAutores_amostra.csv")[0])!;
+    expect(a).toEqual({ idProposicao: 2653544, idDeputado: 74856, proponente: true });
+    expect(autorDoArquivo({ idProposicao: "1", idDeputadoAutor: "" })).toBeNull();
   });
 });
