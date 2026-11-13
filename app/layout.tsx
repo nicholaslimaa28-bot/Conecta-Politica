@@ -21,6 +21,7 @@ const LINKS = [
   ["/parlamentares", "Parlamentares"],
   ["/executivo", "Executivo"],
   ["/busca", "Busca"],
+  ["/alertas", "Alertas"],
   ["/metodologia", "Metodologia"],
   ["/status", "Status"],
 ];

@@ -23,6 +23,8 @@ Site de transparência que reúne, em linguagem simples, o que acontece hoje nos
 | Executivo: agenda do Presidente (com fuso em viagens), leis, vetos e MPs | ✅ Fase 2A e 2B |
 | Executivo: Diário Oficial (INLABS) | Fase 2C — aguarda o INLABS e o cadastro |
 | Judiciário (STF, DataJud) | Fase 3 — card com links oficiais |
+| Alertas: seguir parlamentar/proposição e receber notificação no celular (Web Push, sem cadastro) | ✅ Fase 4A |
+| Alertas por e-mail, Telegram e resumo "Brasília Hoje" | Fases 4B–4D |
 
 ## Arquitetura
 
@@ -39,6 +41,14 @@ collectors/        http.ts (UA, ritmo, retry, bruto), comum.ts (gravação), cam
 fixtures/          amostras reais das fontes, usadas nos testes
 docs/              fontes.md (relatório das fontes) e esquema-banco.md
 ```
+
+## Alertas (Web Push)
+
+- O visitante toca em **🔔 Seguir** na página de um parlamentar ou proposição; o navegador gera uma assinatura de push, que é o único dado guardado (sem nome, e-mail ou telefone).
+- A tarefa `alertas:enviar` roda ao fim de cada coleta: lê as mudanças novas (`mudanca`), descobre quem segue cada item afetado e envia avisos criptografados (`aes128gcm`, assinados com VAPID). Mudanças com mais de 48 h não geram aviso; assinaturas expiradas (HTTP 404/410) são apagadas.
+- Só aceitamos endpoints dos serviços de push dos navegadores (Google, Mozilla, Apple, Microsoft).
+- Chaves: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (Vercel e variável do GitHub) e `VAPID_PRIVATE_KEY` (**apenas** secret do GitHub — o site não precisa dela). Gerar com `npx web-push generate-vapid-keys`.
+- No iPhone, as notificações exigem o site adicionado à Tela de Início (iOS 16.4+).
 
 ## Rodando localmente
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { proposicaoPorSlug, tramitacoes, votacoesDaProposicao, autoresDaProposicao, orientacoes, vetosDaProposicao } from "@/lib/consultas";
 import { VetoItem } from "@/components/Veto";
+import { BotaoSeguir } from "@/components/BotaoSeguir";
 import { Termo } from "@/components/Termo";
 import { formatarData, formatarHora } from "@/lib/tempo";
 import { Fonte } from "@/components/Fonte";
@@ -46,6 +47,7 @@ export default async function PaginaProposicao({ params }: Props) {
           {linkCamara && <a href={linkCamara} target="_blank" rel="noopener">Na Câmara</a>}
           {linkSenado && <a href={linkSenado} target="_blank" rel="noopener">No Senado</a>}
         </p>
+        <div className="mt-2"><BotaoSeguir alvoTipo="proposicao" alvoId={p.id} nome={`${p.sigla} ${p.numero}/${p.ano}`} /></div>
       </header>
 
       <section className="rounded-lg border border-borda bg-superficie p-4" aria-labelledby="sit">

@@ -31,6 +31,8 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       COLETOR_EMAIL_CONTATO: ${{ secrets.COLETOR_EMAIL_CONTATO }}
       SITE_URL: ${{ vars.SITE_URL }}
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ vars.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+      VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
       DADOS_BRUTOS_DIR: ./dados-brutos
     steps:
       - uses: actions/checkout@v7

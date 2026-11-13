@@ -16,5 +16,6 @@ CREATE INDEX IF NOT EXISTS proposicao_apelido_trgm ON proposicao USING gin (lowe
 INSERT INTO fonte (id, nome, url_base) VALUES
   ('camara', 'Câmara dos Deputados', 'https://dadosabertos.camara.leg.br'),
   ('senado', 'Senado Federal / Congresso Nacional', 'https://legis.senado.leg.br/dadosabertos'),
-  ('planalto', 'Presidência da República — agenda', 'https://www.gov.br/planalto/pt-br/acompanhe-o-planalto')
+  ('planalto', 'Presidência da República — agenda', 'https://www.gov.br/planalto/pt-br/acompanhe-o-planalto'),
+  ('alertas', 'Envio de alertas (Web Push)', 'https://conecta-politica.vercel.app/alertas')
 ON CONFLICT (id) DO NOTHING;

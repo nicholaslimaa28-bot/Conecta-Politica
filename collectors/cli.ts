@@ -11,6 +11,7 @@ const camara = await import("./camara/coletar");
 const senado = await import("./senado/coletar");
 const planalto = await import("./planalto/coletar");
 const congresso = await import("./congresso/coletar");
+const alertas = await import("./alertas/enviar");
 
 type Tarefa = (...args: string[]) => Promise<unknown>;
 const tarefas: Record<string, Tarefa> = {
@@ -30,16 +31,17 @@ const tarefas: Record<string, Tarefa> = {
   "congresso:vetos": (...anos) => congresso.vetos(anos.length ? anos.map(Number) : undefined),
   "congresso:leis": (ano) => congresso.leis(ano ? Number(ano) : undefined),
   "congresso:mpvs": (ano) => congresso.mpvs(ano ? Number(ano) : undefined),
+  "alertas:enviar": () => alertas.enviar(),
 };
 
 // Rotinas agrupam tarefas na ordem certa (cadastros antes de votos, por exemplo)
 const rotinas: Record<string, string[]> = {
-  frequente: ["camara:agenda", "senado:agenda", "camara:votacoes", "senado:votacoes", "planalto:agenda"],
+  frequente: ["camara:agenda", "senado:agenda", "camara:votacoes", "senado:votacoes", "planalto:agenda", "alertas:enviar"],
   diaria: [
     "camara:cadastro", "senado:cadastro", "camara:despesas", "senado:despesas",
     "congresso:vetos", "congresso:leis", "congresso:mpvs", "camara:tramitacoes",
     // Por último, as mais lentas (513 deputados cada)
-    "camara:presenca", "senado:autoria", "camara:autoria",
+    "camara:presenca", "senado:autoria", "camara:autoria", "alertas:enviar",
   ],
 };
 rotinas.inicial = [...rotinas.diaria.slice(0, 2), ...rotinas.frequente, ...rotinas.diaria.slice(2)];

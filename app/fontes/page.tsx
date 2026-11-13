@@ -25,6 +25,7 @@ export default function Fontes() {
       <p className="text-sm">Diário Oficial da União (Imprensa Nacional — INLABS), agendas do Vice-Presidente e de ministros (e-Agendas/CGU), Supremo Tribunal Federal e DataJud (CNJ). Quando usarmos o DataJud, as telas trarão a citação “Fonte: CNJ – DataJud”, como exige o termo de uso.</p>
       <h2 className="text-xl font-semibold">Privacidade (LGPD)</h2>
       <p className="text-sm">Exibimos apenas informação funcional de agentes públicos, como os órgãos já publicam. Não armazenamos CPF, data de nascimento ou endereço residencial, ainda que algumas fontes os disponibilizem.</p>
+      <p className="text-sm">Os <a href="/alertas">alertas</a> funcionam sem cadastro: guardamos apenas o código de notificação gerado pelo seu navegador e a lista do que você segue. Desligar os alertas apaga esses dados.</p>
       <p className="text-sm"><strong>Site independente, sem vínculo com os órgãos oficiais.</strong></p>
     </article>
   );

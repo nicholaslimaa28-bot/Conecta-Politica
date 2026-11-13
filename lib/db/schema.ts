@@ -48,7 +48,8 @@ export const mudanca = pgTable("mudanca", {
   entidadeId: integer("entidade_id").notNull(),
   dados: jsonb("dados").notNull(),
   detectadoEm: tz("detectado_em").notNull().defaultNow(),
-}, (t) => [index("mudanca_entidade_idx").on(t.entidade, t.entidadeId)]);
+  processadoEm: tz("processado_em"), // quando o disparador de alertas já tratou esta mudança
+}, (t) => [index("mudanca_entidade_idx").on(t.entidade, t.entidadeId), index("mudanca_pendente_idx").on(t.processadoEm)]);
 
 // ---------------- Legislativo: cadastros ----------------
 
@@ -351,3 +352,32 @@ export const veto = pgTable("veto", {
   fonteUrl: text("fonte_url").notNull(),
   coletadoEm: tz("coletado_em").notNull(),
 }, (t) => [uniqueIndex("veto_codigo_uq").on(t.codigoSenado), index("veto_data_idx").on(t.dataPublicacao)]);
+
+// ---------------- Alertas (Fase 4A): seguir sem conta, por notificação no navegador ----------------
+
+/** Uma assinatura de Web Push = um navegador/aparelho. Não guardamos nenhum dado pessoal. */
+export const pushAssinatura = pgTable("push_assinatura", {
+  id: serial("id").primaryKey(),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  criadoEm: tz("criado_em").notNull().defaultNow(),
+  ultimoEnvio: tz("ultimo_envio"),
+}, (t) => [uniqueIndex("push_endpoint_uq").on(t.endpoint)]);
+
+export const inscricao = pgTable("inscricao", {
+  id: serial("id").primaryKey(),
+  assinaturaId: integer("assinatura_id").notNull().references(() => pushAssinatura.id, { onDelete: "cascade" }),
+  alvoTipo: text("alvo_tipo").notNull(), // parlamentar | proposicao
+  alvoId: integer("alvo_id").notNull(),
+  criadoEm: tz("criado_em").notNull().defaultNow(),
+}, (t) => [uniqueIndex("inscricao_uq").on(t.assinaturaId, t.alvoTipo, t.alvoId), index("inscricao_alvo_idx").on(t.alvoTipo, t.alvoId)]);
+
+/** Registro de cada aviso enviado (evita duplicar e permite auditoria). */
+export const notificacao = pgTable("notificacao", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  assinaturaId: integer("assinatura_id").notNull().references(() => pushAssinatura.id, { onDelete: "cascade" }),
+  mudancaId: integer("mudanca_id").notNull(),
+  enviadoEm: tz("enviado_em"),
+  erro: text("erro"),
+}, (t) => [uniqueIndex("notificacao_uq").on(t.assinaturaId, t.mudancaId)]);
