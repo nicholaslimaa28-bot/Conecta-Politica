@@ -163,7 +163,7 @@ export const presenca = (ano = Number(hojeBrasilia().slice(0, 4))) =>
     const deps = await db.select({ id: s.parlamentar.id, idFonte: s.parlamentar.idFonte }).from(s.parlamentar)
       .where(and(eq(s.parlamentar.casa, "CD"), eq(s.parlamentar.emExercicio, true)));
     let falhas = 0;
-    await emLotes(deps, 1, async (d) => {
+    await emLotes(deps, 2, async (d) => {
       const url = `https://www.camara.leg.br/deputados/${d.idFonte}?ano=${ano}`;
       try {
         const p = lerPresencaPerfil(await buscarTexto(url));
@@ -193,7 +193,8 @@ export const autoria = (desdeParam?: string) =>
     const deps = await db.select({ id: s.parlamentar.id, idFonte: s.parlamentar.idFonte }).from(s.parlamentar)
       .where(and(eq(s.parlamentar.casa, "CD"), eq(s.parlamentar.emExercicio, true)));
     const tipos = TIPOS_AUTORIA.map((t) => `siglaTipo=${t}`).join("&");
-    await emLotes(deps, 2, async (d) => {
+    // 4 simultâneas: a lentidão é a resposta da fonte; o ritmo de 2 req/s por servidor segue garantido em http.ts
+    await emLotes(deps, 4, async (d) => {
       type P = { id: number; siglaTipo: string; numero: number; ano: number; ementa: string };
       const props = await todasPaginas<P>(`${API}/proposicoes?idDeputadoAutor=${d.idFonte}&${tipos}&dataApresentacaoInicio=${desde}&ordem=DESC&ordenarPor=id`);
       for (const p of props) {

@@ -27,9 +27,11 @@ export const cadastro = () => executarTarefa("senado", "cadastro_senadores", asy
   if (!atual) throw new Error("Lista de senadores indisponível");
   const emExercicio = atual.ListaParlamentarEmExercicio.Parlamentares.Parlamentar;
   const ids = new Set<number>();
+  const emExercicioIds = new Set<number>();
   for (const p of emExercicio) {
     const id = await salvarParlamentar(normalizarSenador(p, true, agora));
     ids.add(id);
+    emExercicioIds.add(id);
     c.lidos++;
   }
   const afast = await json<Afastados>(`${API}/senador/afastados`);
@@ -43,9 +45,11 @@ export const cadastro = () => executarTarefa("senado", "cadastro_senadores", asy
   const fora = todos.map((t) => t.id).filter((id) => !ids.has(id));
   if (fora.length) await db.update(s.parlamentar).set({ emExercicio: false, situacao: "Fora do mandato" }).where(inArray(s.parlamentar.id, fora));
 
-  // Licenças oficiais (missões, saúde etc.) — usadas no contexto da presença
+  // Licenças oficiais (missões, saúde etc.) — usadas no contexto da presença; só de quem está em exercício.
+  // 4 consultas simultâneas: a fonte responde devagar a partir do exterior; o ritmo de no máximo
+  // 2 requisições por segundo por servidor continua garantido em http.ts.
   const mapa = await mapaParlamentares("SF");
-  await emLotes([...mapa.entries()], 2, async ([cod, parlamentarId]) => {
+  await emLotes([...mapa.entries()].filter(([, id]) => emExercicioIds.has(id)), 4, async ([cod, parlamentarId]) => {
     const l = await json<Parameters<typeof normalizarLicencas>[0]>(`${API}/senador/${cod}/licencas`);
     if (!l) return;
     for (const lic of normalizarLicencas(l)) {
@@ -160,7 +164,7 @@ export const autoria = (desdeParam?: string) =>
     console.log(`[autoria SF] proposições apresentadas desde ${desde}`);
     const mapa = await mapaParlamentares("SF");
     const ativos = await db.select({ idFonte: s.parlamentar.idFonte }).from(s.parlamentar).where(and(eq(s.parlamentar.casa, "SF"), eq(s.parlamentar.emExercicio, true)));
-    await emLotes(ativos, 2, async ({ idFonte }) => {
+    await emLotes(ativos, 4, async ({ idFonte }) => {
       const parlamentarId = mapa.get(idFonte)!;
       for (const sigla of TIPOS_AUTORIA) {
         const lista = await json<Parameters<typeof normalizarProcesso>[0][]>(
