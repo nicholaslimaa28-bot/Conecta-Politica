@@ -1,10 +1,15 @@
 # Três Poderes Hoje (nome provisório)
 
-Site de transparência que reúne, em linguagem simples, o que acontece hoje na Câmara, no Senado e no Congresso, com fonte e horário em cada dado. Executivo e Judiciário entram nas próximas fases. A especificação completa está em [`SPEC.md`](SPEC.md).
+[![Testes](https://github.com/nicholaslimaa28-bot/Conecta-Politica/actions/workflows/testes.yml/badge.svg)](https://github.com/nicholaslimaa28-bot/Conecta-Politica/actions/workflows/testes.yml)
+[![Coleta](https://github.com/nicholaslimaa28-bot/Conecta-Politica/actions/workflows/coleta.yml/badge.svg)](https://github.com/nicholaslimaa28-bot/Conecta-Politica/actions/workflows/coleta.yml)
 
-> Site independente, sem vínculo com os órgãos oficiais.
+**🌐 No ar: https://conecta-politica.vercel.app** · estado das coletas em [/status](https://conecta-politica.vercel.app/status)
 
-## Estado atual — Fase 1 (MVP Legislativo)
+Site de transparência que reúne, em linguagem simples, o que acontece hoje nos três Poderes — Câmara, Senado, Congresso e Presidência —, com fonte e horário em cada dado. A especificação completa está em [`SPEC.md`](SPEC.md); o relatório de cada fonte oficial, em [`docs/fontes.md`](docs/fontes.md).
+
+> Site independente, sem vínculo com os órgãos oficiais. Todos os dados vêm de fontes públicas oficiais, com link para a origem.
+
+## Estado atual
 
 | Funcionalidade | Situação |
 |---|---|
@@ -30,7 +35,7 @@ Site de transparência que reúne, em linguagem simples, o que acontece hoje na 
 app/               páginas (home, parlamentar, proposicao, sessao, votacao, busca, status…)
 components/        componentes de interface
 lib/               banco, consultas, glossário, utilidades de data/texto
-collectors/        http.ts (UA, ritmo, retry, bruto), comum.ts (gravação), camara/, senado/, cli.ts
+collectors/        http.ts (UA, ritmo, retry, bruto), comum.ts (gravação), camara/, senado/, planalto/, congresso/, cli.ts
 fixtures/          amostras reais das fontes, usadas nos testes
 docs/              fontes.md (relatório das fontes) e esquema-banco.md
 ```
@@ -70,3 +75,12 @@ Execute sem argumentos para ver todas as tarefas.
 ## Princípios (resumo)
 
 Neutralidade (sem ranking, sem adjetivos, sem cores de partido) · toda informação com fonte e horário · nunca estimar dado que falta · contexto em números sensíveis (presença com justificativa) · linguagem simples (glossário) · mobile first. Detalhes de cálculo na página `/metodologia`.
+
+## Contribuindo
+
+Encontrou um dado diferente da fonte oficial? Use o formulário [Reportar erro](https://conecta-politica.vercel.app/reportar-erro) ou abra uma *issue*. Antes de mudar um normalizador, adicione uma amostra real em `fixtures/` e um teste.
+
+## Notas de manutenção
+
+- `npm audit` aponta 4 alertas moderados no `esbuild` antigo usado internamente pelo `drizzle-kit`, ferramenta só de desenvolvimento (geração de migrações). Não afeta o site nem os coletores; a "correção" automática rebaixaria o `drizzle-kit` e quebraria o projeto. Acompanhar novas versões do `drizzle-kit`.
+- Na primeira carga, a autoria (proposições desde 2023) é a etapa mais lenta; depois ela passa a buscar só os últimos 30 dias.
