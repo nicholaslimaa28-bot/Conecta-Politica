@@ -19,7 +19,8 @@ on:
         default: frequente
 
 concurrency:
-  group: coleta-${{ github.event.schedule == '10 9 * * *' && 'diaria' || 'frequente' }}
+  # Filas separadas: uma execução manual não é descartada pela agendada seguinte
+  group: coleta-${{ github.event_name == 'workflow_dispatch' && 'manual' || (github.event.schedule == '10 9 * * *' && 'diaria' || 'frequente') }}
   cancel-in-progress: false
 
 jobs:

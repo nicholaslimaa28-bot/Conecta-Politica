@@ -49,12 +49,14 @@ export async function emLotes<T>(itens: T[], n: number, fn: (x: T) => Promise<vo
 }
 
 /**
- * Data inicial da coleta de autoria: a legislatura inteira na primeira carga;
- * depois, só os últimos 30 dias (proposições novas), para a rotina diária não refazer tudo.
+ * Data inicial da coleta de autoria: a legislatura inteira enquanto não houver nenhuma execução
+ * completa (status ok) — inclusive se a primeira carga foi interrompida no meio; depois, só os
+ * últimos 30 dias (proposições novas), para a rotina diária não refazer tudo.
  */
 export async function inicioAutoria(casa: "CD" | "SF"): Promise<string> {
-  const [r] = await db.select({ n: dsql<number>`count(*)::int` }).from(s.autoria)
-    .innerJoin(s.parlamentar, eq(s.parlamentar.id, s.autoria.parlamentarId)).where(eq(s.parlamentar.casa, casa));
+  const fonteId = casa === "CD" ? "camara" : "senado";
+  const [r] = await db.select({ n: dsql<number>`count(*)::int` }).from(s.coleta)
+    .where(and(eq(s.coleta.fonteId, fonteId), eq(s.coleta.tarefa, "autoria"), eq(s.coleta.status, "ok")));
   if (!r || r.n === 0) return "2023-02-01";
   const d = new Date();
   d.setUTCDate(d.getUTCDate() - 30);
