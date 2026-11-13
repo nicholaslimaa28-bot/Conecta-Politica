@@ -4,6 +4,7 @@ import Link from "next/link";
 import { carregarResumo, edicaoVigente } from "@/lib/brasilia-hoje";
 import { hojeBrasilia, somarDias } from "@/lib/tempo";
 import { BotaoSeguir } from "@/components/BotaoSeguir";
+import { Compartilhar } from "@/components/Compartilhar";
 import { Indisponivel } from "@/components/Indisponivel";
 import type { Edicao } from "@/lib/resumo";
 
@@ -39,6 +40,7 @@ export default async function BrasiliaHoje({ searchParams }: Props) {
         <h1 className="text-2xl font-bold">Brasília Hoje</h1>
         <p className="text-suave first-letter:uppercase">{r.subtitulo}</p>
         <p className="mt-2 font-medium">{r.chamada}</p>
+        <div className="mt-2"><Compartilhar titulo="Brasília Hoje" texto={`Brasília Hoje: ${r.chamada}`} /></div>
         <nav aria-label="Outras edições" className="mt-2 flex gap-4 text-sm">
           <Link href={link(anterior)}>← Edição anterior</Link>
           {temSeguinte && <Link href={link(seguinte)}>Próxima edição →</Link>}

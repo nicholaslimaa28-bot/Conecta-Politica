@@ -12,6 +12,7 @@ import { Fonte } from "@/components/Fonte";
 import { Termo, TermoSigla } from "@/components/Termo";
 import { rotuloVoto } from "@/components/Selos";
 import { BotaoSeguir } from "@/components/BotaoSeguir";
+import { Compartilhar } from "@/components/Compartilhar";
 
 export const revalidate = 600;
 
@@ -157,7 +158,7 @@ export default async function PaginaParlamentar({ params, searchParams }: Props)
             {p.telefone && <span>Tel. {p.telefone}</span>}
             {p.urlPaginaOficial && <a href={p.urlPaginaOficial} target="_blank" rel="noopener">Página oficial</a>}
           </p>
-          <div className="mt-2"><BotaoSeguir alvoTipo="parlamentar" alvoId={p.id} nome={p.nome} /></div>
+          <div className="mt-2 flex flex-wrap items-start gap-2"><BotaoSeguir alvoTipo="parlamentar" alvoId={p.id} nome={p.nome} /><Compartilhar titulo={`${p.nome} (${p.partido}-${p.uf})`} texto={`${p.nome} (${p.partido}-${p.uf}): presença, votos, proposições e gastos`} /></div>
         </div>
         <nav aria-label="Seções desta página" className="w-full text-sm">
           <ul className="flex flex-wrap gap-x-4">

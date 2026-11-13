@@ -8,6 +8,7 @@ import { formatarData, formatarHora } from "@/lib/tempo";
 import { Fonte } from "@/components/Fonte";
 import { Placar } from "@/components/Placar";
 import { SeloCasa, rotuloVoto } from "@/components/Selos";
+import { Compartilhar } from "@/components/Compartilhar";
 
 // ISR sob demanda: cada página é gerada na primeira visita e revalidada depois
 export async function generateStaticParams() { return []; }
@@ -47,6 +48,7 @@ export default async function PaginaVotacao({ params }: Props) {
         <p className="mt-1">{v.descricao}</p>
         <div className="mt-2"><Placar v={v} /></div>
         {v.eventoId && <p className="mt-1 text-sm"><Link href={`/sessao/${v.eventoId}`}>Ver a sessão</Link></p>}
+        <div className="mt-2"><Compartilhar titulo={`Votação${v.proposicao ? ` — ${v.proposicao.sigla} ${v.proposicao.numero}/${v.proposicao.ano}` : ""}`} texto={`Como cada parlamentar votou${v.proposicao ? ` na ${v.proposicao.sigla} ${v.proposicao.numero}/${v.proposicao.ano}` : ""}`} /></div>
       </header>
 
       {(orient.get(v.id) ?? []).length > 0 && (
