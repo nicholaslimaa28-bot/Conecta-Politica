@@ -4,17 +4,18 @@ import webpush from "web-push";
 import { sql } from "@/lib/db";
 import { executarTarefa } from "../comum";
 import {
-  avisoVotacaoProposicao, avisoVotoParlamentar, avisoSituacao, avisoNorma, avisoVeto, avisoFalha, agrupar, type Aviso,
+  avisoVotacaoProposicao, avisoVotoParlamentar, avisoSituacao, avisoNorma, avisoVeto, avisoFalha, avisoTema, agrupar, type Aviso,
 } from "@/lib/alertas";
+import { temasDoTexto, temaPorId } from "@/lib/temas";
 
 type Mudanca = { id: number; tipo: string; entidade: string; entidadeId: number; dados: Record<string, unknown>; detectadoEm: Date };
-type Prop = { sigla: string; numero: number; ano: number; slug: string };
+type Prop = { sigla: string; numero: number; ano: number; slug: string; ementa: string | null; apelido: string | null };
 type Destino = { assinaturaId: number; mudancaId: number; aviso: Aviso };
 
 /** Mudanças mais antigas que isso não geram aviso (ex.: as da carga inicial). */
 const IDADE_MAXIMA_H = 48;
 
-async function seguidores(tipo: "parlamentar" | "proposicao" | "admin", id: number | null): Promise<number[]> {
+async function seguidores(tipo: "parlamentar" | "proposicao" | "admin" | "tema", id: number | null): Promise<number[]> {
   if (!id) return [];
   const r = await sql<{ a: number }[]>`SELECT assinatura_id AS a FROM inscricao WHERE alvo_tipo = ${tipo} AND alvo_id = ${id}`;
   return r.map((x) => x.a);
@@ -22,7 +23,7 @@ async function seguidores(tipo: "parlamentar" | "proposicao" | "admin", id: numb
 
 async function proposicao(id: number | null): Promise<Prop | null> {
   if (!id) return null;
-  const [p] = await sql<Prop[]>`SELECT sigla, numero, ano, slug FROM proposicao WHERE id = ${id}`;
+  const [p] = await sql<Prop[]>`SELECT sigla, numero, ano, slug, ementa, apelido FROM proposicao WHERE id = ${id}`;
   return p ?? null;
 }
 
@@ -38,6 +39,10 @@ async function destinosDe(m: Mudanca): Promise<Destino[]> {
     if (!v) return out;
     const p = await proposicao(v.proposicaoId);
     if (p) para(await seguidores("proposicao", v.proposicaoId), avisoVotacaoProposicao(v, p));
+    // Quem segue um tema da proposição
+    if (p) for (const t of temasDoTexto(`${p.ementa ?? ""} ${p.apelido ?? ""}`)) {
+      para(await seguidores("tema", t), avisoTema(temaPorId(t)!.nome, p, { tipo: "votacao", casa: v.casa, aprovada: v.aprovada }));
+    }
     if (v.nominal) {
       // Quem segue um parlamentar recebe o voto dele (inclusive ausência registrada pela Casa)
       const votos = await sql<{ assinaturaId: number; nome: string; tipoVoto: string }[]>`
@@ -52,6 +57,9 @@ async function destinosDe(m: Mudanca): Promise<Destino[]> {
   } else if (m.tipo === "virou_norma") {
     const p = await proposicao(m.entidadeId);
     if (p) para(await seguidores("proposicao", m.entidadeId), avisoNorma(p, String(m.dados.norma)));
+    if (p) for (const t of temasDoTexto(`${p.ementa ?? ""} ${p.apelido ?? ""}`)) {
+      para(await seguidores("tema", t), avisoTema(temaPorId(t)!.nome, p, { tipo: "lei", norma: String(m.dados.norma) }));
+    }
   } else if (m.tipo === "novo_veto" || m.tipo === "veto_mudou") {
     const [v] = await sql<{ numero: number; ano: number; total: boolean | null; resultado: string; proposicaoId: number | null }[]>`
       SELECT numero, ano, total, resultado, proposicao_id AS "proposicaoId" FROM veto WHERE id = ${m.entidadeId}`;
@@ -105,7 +113,11 @@ export const enviar = () =>
     // Agrupa por aparelho, sem repetir o que já foi enviado
     const porAparelho = new Map<number, Destino[]>();
     for (const m of pendentes) {
-      for (const d of await destinosDe(m)) porAparelho.set(d.assinaturaId, [...(porAparelho.get(d.assinaturaId) ?? []), d]);
+      for (const d of await destinosDe(m)) {
+        const lista = porAparelho.get(d.assinaturaId) ?? [];
+        // No máximo um aviso por mudança e aparelho (ex.: segue a proposição e também o tema dela)
+        if (!lista.some((x) => x.mudancaId === d.mudancaId)) porAparelho.set(d.assinaturaId, [...lista, d]);
+      }
     }
     for (const [assinaturaId, destinos] of porAparelho) {
       const ja = new Set((await sql<{ m: number }[]>`SELECT mudanca_id AS m FROM notificacao WHERE assinatura_id = ${assinaturaId} AND mudanca_id IN ${sql(destinos.map((d) => d.mudancaId))}`).map((x) => x.m));

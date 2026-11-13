@@ -417,3 +417,29 @@ export async function dadosDoDia(dia: string): Promise<DadosResumo> {
     agendaPresidente: agenda.dia?.publicada ? agenda.compromissos.map((c) => ({ titulo: c.titulo, inicioTexto: c.inicioTexto, horaLocal: c.horaLocal })) : null,
   };
 }
+
+// ---------------- Temas ----------------
+
+import { temasDoTexto } from "@/lib/temas";
+
+/** Votações em Plenário e leis recentes de um tema (classificação pela ementa, ver lib/temas.ts). */
+export async function atividadeDoTema(temaId: number, diasVotacoes = 60, diasLeis = 120) {
+  const votacoes = await sql<(Votacao & { ementa: string | null })[]>`
+    SELECT ${camposVotacao}, p.ementa FROM votacao v JOIN proposicao p ON p.id = v.proposicao_id
+    WHERE v.data_hora > now() - make_interval(days => ${diasVotacoes}::int) ORDER BY v.data_hora DESC`;
+  const leis = await sql<(LeiRecente & { ementaProp: string | null })[]>`
+    SELECT n.nome, n.ementa, n.data_assinatura::text AS "dataAssinatura", n.url, p.ementa AS "ementaProp",
+      CASE WHEN p.id IS NULL THEN NULL ELSE json_build_object('sigla', p.sigla, 'numero', p.numero, 'ano', p.ano, 'slug', p.slug) END AS proposicao,
+      false AS "vetoParcial"
+    FROM norma n LEFT JOIN proposicao p ON p.id = n.proposicao_id
+    WHERE n.data_assinatura > current_date - ${diasLeis}::int ORDER BY n.data_assinatura DESC`;
+  const doTema = (texto: string | null | undefined) => temasDoTexto(texto).includes(temaId);
+  // Uma linha por proposição votada (a votação mais recente)
+  const vistas = new Set<string>();
+  const votadas = votacoes.filter((v) => {
+    if (!v.proposicao || !doTema(`${v.ementa ?? ""} ${v.proposicao.apelido ?? ""}`) || vistas.has(v.proposicao.slug)) return false;
+    vistas.add(v.proposicao.slug);
+    return true;
+  });
+  return { votadas: votadas.slice(0, 30), leis: leis.filter((l) => doTema(l.ementaProp ?? l.ementa)).slice(0, 30) };
+}

@@ -20,6 +20,7 @@ const LINKS = [
   ["/", "Hoje"],
   ["/brasilia-hoje", "Brasília Hoje"],
   ["/parlamentares", "Parlamentares"],
+  ["/temas", "Temas"],
   ["/executivo", "Executivo"],
   ["/busca", "Busca"],
   ["/alertas", "Alertas"],

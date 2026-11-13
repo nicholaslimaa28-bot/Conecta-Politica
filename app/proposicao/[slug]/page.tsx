@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { proposicaoPorSlug, tramitacoes, votacoesDaProposicao, autoresDaProposicao, orientacoes, vetosDaProposicao } from "@/lib/consultas";
 import { VetoItem } from "@/components/Veto";
 import { BotaoSeguir } from "@/components/BotaoSeguir";
+import { TEMAS, temasDoTexto } from "@/lib/temas";
 import { Compartilhar } from "@/components/Compartilhar";
 import { Termo } from "@/components/Termo";
 import { formatarData, formatarHora } from "@/lib/tempo";
@@ -42,6 +43,14 @@ export default async function PaginaProposicao({ params }: Props) {
         <p className="text-sm text-suave"><TermoSigla sigla={p.sigla} />{p.dataApresentacao ? ` · apresentada em ${formatarData(p.dataApresentacao)}` : ""}</p>
         <h1 className="text-2xl font-bold">{p.sigla} {p.numero}/{p.ano}{p.apelido ? <span className="font-normal"> — {p.apelido}</span> : null}</h1>
         {p.ementa && <p className="mt-2">{p.ementa}</p>}
+        {temasDoTexto(`${p.ementa ?? ""} ${p.apelido ?? ""}`).length > 0 && (
+          <p className="mt-2 flex flex-wrap gap-2 text-xs">
+            {temasDoTexto(`${p.ementa ?? ""} ${p.apelido ?? ""}`).map((id) => {
+              const t = TEMAS.find((x) => x.id === id)!;
+              return <Link key={id} href={`/tema/${t.slug}`} className="rounded border border-borda px-2 py-0.5">{t.nome}</Link>;
+            })}
+          </p>
+        )}
         <p className="mt-2 text-xs text-suave">A ementa é o resumo oficial do texto. Para o conteúdo completo, leia o texto oficial.</p>
         <p className="mt-2 flex flex-wrap gap-x-4 text-sm">
           {p.urlInteiroTeor && <a href={p.urlInteiroTeor} target="_blank" rel="noopener">Texto oficial</a>}

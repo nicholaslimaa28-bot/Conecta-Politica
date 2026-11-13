@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { verificarSuporte, permissaoNotificacao, assinaturaAtual, assinar, chamarApi, type Suporte } from "@/lib/push-cliente";
 
-type Props = { alvoTipo: "parlamentar" | "proposicao" | "resumo" | "admin"; alvoId: number; nome: string; codigo?: string };
+type Props = { alvoTipo: "parlamentar" | "proposicao" | "resumo" | "admin" | "tema"; alvoId: number; nome: string; codigo?: string };
 
 const AJUDA: Record<Exclude<Suporte, "ok" | "sem-chave">, string> = {
   "ios-instalar": "No iPhone, os alertas funcionam com o site na Tela de Início: toque em Compartilhar → Adicionar à Tela de Início e abra por lá.",

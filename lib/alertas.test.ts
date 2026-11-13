@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { codigoAdminValido, avisoFalha, validarAssinatura, validarAlvo, avisoVotacaoProposicao, avisoVotoParlamentar, avisoSituacao, avisoNorma, avisoVeto, agrupar } from "./alertas";
+import { avisoTema, codigoAdminValido, avisoFalha, validarAssinatura, validarAlvo, avisoVotacaoProposicao, avisoVotoParlamentar, avisoSituacao, avisoNorma, avisoVeto, agrupar } from "./alertas";
 
 const chaves = { p256dh: "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM", auth: "tBHItJI5svbpez7KI4CCXg" };
 
@@ -20,7 +20,7 @@ describe("validação de assinaturas", () => {
 
   it("valida o alvo", () => {
     expect(validarAlvo("parlamentar", "12")).toEqual({ tipo: "parlamentar", id: 12 });
-    expect(validarAlvo("tema", 1)).toBeNull();
+    expect(validarAlvo("assunto", 1)).toBeNull();
     expect(validarAlvo("resumo", 2)).toEqual({ tipo: "resumo", id: 2 });
     expect(validarAlvo("resumo", 3)).toBeNull();
     expect(validarAlvo("proposicao", -1)).toBeNull();
@@ -75,5 +75,17 @@ describe("avisos ao administrador", () => {
   it("alvo admin só com id 1", () => {
     expect(validarAlvo("admin", 1)).toEqual({ tipo: "admin", id: 1 });
     expect(validarAlvo("admin", 2)).toBeNull();
+  });
+});
+
+describe("temas nos alertas", () => {
+  const p = { sigla: "PL", numero: 1, ano: 2026, slug: "pl-1-2026" };
+  it("valida o tema", () => {
+    expect(validarAlvo("tema", 1)).toEqual({ tipo: "tema", id: 1 });
+    expect(validarAlvo("tema", 999)).toBeNull();
+  });
+  it("texto dos avisos de tema", () => {
+    expect(avisoTema("Saúde", p, { tipo: "votacao", casa: "CD", aprovada: true }).titulo).toBe("Saúde: PL 1/2026 aprovado na Câmara");
+    expect(avisoTema("Saúde", p, { tipo: "lei", norma: "Lei nº 1" })).toMatchObject({ titulo: "Saúde: PL 1/2026 virou lei", url: "/proposicao/pl-1-2026" });
   });
 });

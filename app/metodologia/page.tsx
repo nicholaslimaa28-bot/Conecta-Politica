@@ -1,6 +1,7 @@
 // Metodologia: como cada número exibido é obtido ou calculado.
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TEMAS } from "@/lib/temas";
 
 export const metadata: Metadata = { title: "Metodologia", description: "Como cada número do site é obtido ou calculado a partir das fontes oficiais." };
 
@@ -36,6 +37,12 @@ export default function Metodologia() {
 
       <h2 id="brasilia-hoje" className={h2}>Resumo “Brasília Hoje”</h2>
       <p>Montado automaticamente, sem seleção editorial. A edição da manhã (7h) traz as sessões deliberativas dos Plenários marcadas para o dia, a agenda do Presidente e o que foi votado e publicado no dia anterior; a da noite (20h) traz o que foi votado e publicado no dia e a pauta do dia seguinte. Entram todas as votações em Plenário (várias votações da mesma proposição aparecem numa linha só), leis, vetos e medidas provisórias do período.</p>
+
+      <h2 id="temas" className={h2}>Temas</h2>
+      <p>Uma proposição entra num tema quando a ementa (o resumo oficial) ou o apelido contém uma das palavras-chave abaixo, sem acento e no início de uma palavra. O critério é automático e igual para todas; uma proposição pode estar em mais de um tema, e algumas não entram em nenhum. Classificações imperfeitas podem ser <Link href="/reportar-erro">reportadas</Link>.</p>
+      <ul className="list-disc space-y-1 pl-6 text-sm">
+        {TEMAS.map((t) => <li key={t.id}><strong>{t.nome}:</strong> {t.palavras.join(", ")}</li>)}
+      </ul>
 
       <h2 id="horarios" className={h2}>Horários</h2>
       <p>Todos os horários estão no fuso de Brasília. A situação das sessões (agendada, em andamento, encerrada, cancelada, suspensa) é a publicada pelas Casas e é atualizada a cada coleta.</p>

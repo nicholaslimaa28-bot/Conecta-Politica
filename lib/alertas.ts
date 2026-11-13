@@ -1,7 +1,9 @@
+import { temaPorId } from "./temas";
+
 // Regras dos alertas (Fase 4A): validação das assinaturas de Web Push e texto de cada aviso.
 // Funções puras, testadas em lib/alertas.test.ts. Os avisos são neutros: só fatos, com link.
 
-export const TIPOS_ALVO = ["parlamentar", "proposicao", "resumo", "admin"] as const;
+export const TIPOS_ALVO = ["parlamentar", "proposicao", "resumo", "admin", "tema"] as const;
 /** Resumo "Brasília Hoje": alvoId 1 = edição da manhã (7h), 2 = edição da noite (20h). */
 export const RESUMO_MANHA = 1, RESUMO_NOITE = 2;
 export type TipoAlvo = (typeof TIPOS_ALVO)[number];
@@ -36,6 +38,7 @@ export function validarAlvo(tipo: unknown, id: unknown): { tipo: TipoAlvo; id: n
   if (!Number.isInteger(n) || n <= 0) return null;
   if (tipo === "resumo" && n !== RESUMO_MANHA && n !== RESUMO_NOITE) return null;
   if (tipo === "admin" && n !== 1) return null;
+  if (tipo === "tema" && !temaPorId(n)) return null;
   return { tipo: tipo as TipoAlvo, id: n };
 }
 
@@ -109,6 +112,13 @@ export function codigoAdminValido(informado: unknown, esperado: string | undefin
   let dif = a.length ^ b.length;
   for (let i = 0; i < Math.max(a.length, b.length); i++) dif |= (a[i] ?? 0) ^ (b[i] ?? 0);
   return dif === 0;
+}
+
+/** Aviso a quem segue um tema: proposição do tema votada em Plenário ou transformada em lei. */
+export function avisoTema(nomeTema: string, p: NonNullable<Prop>, evento: { tipo: "votacao"; casa: string; aprovada: boolean | null } | { tipo: "lei"; norma: string }): Aviso {
+  if (evento.tipo === "lei") return { titulo: `${nomeTema}: ${nomeProp(p)} virou lei`, corpo: corta(evento.norma), url: `/proposicao/${p.slug}` };
+  const resultado = evento.aprovada == null ? "votado" : evento.aprovada ? "aprovado" : "rejeitado";
+  return { titulo: `${nomeTema}: ${nomeProp(p)} ${resultado} ${NA_CASA[evento.casa] ?? ""}`.trim(), corpo: "Veja o resultado e como cada parlamentar votou.", url: `/proposicao/${p.slug}` };
 }
 
 /** Muitos avisos para o mesmo aparelho numa rodada viram um resumo, para não encher o celular. */

@@ -2,6 +2,7 @@
 // não há conta, e-mail ou qualquer dado pessoal.
 import { sql } from "@/lib/db";
 import { validarAssinatura, validarAlvo, codigoAdminValido } from "@/lib/alertas";
+import { temaPorId } from "@/lib/temas";
 
 const json = (dados: unknown, status = 200) => Response.json(dados, { status, headers: { "Cache-Control": "no-store" } });
 
@@ -70,6 +71,11 @@ export async function POST(req: Request) {
         LEFT JOIN parlamentar pa ON i.alvo_tipo = 'parlamentar' AND pa.id = i.alvo_id
         LEFT JOIN proposicao pr ON i.alvo_tipo = 'proposicao' AND pr.id = i.alvo_id
         WHERE i.assinatura_id = ${id} ORDER BY i.criado_em DESC`;
+      // Temas: nome e página vêm da lista fixa de temas
+      for (const it of itens) {
+        const t = it.alvoTipo === "tema" ? temaPorId(it.alvoId) : null;
+        if (t) Object.assign(it, { titulo: `Tema: ${t.nome}`, detalhe: "Votações em Plenário e novas leis do tema", url: `/tema/${t.slug}` });
+      }
       return json({ itens });
     }
     case "cancelar_tudo": {
