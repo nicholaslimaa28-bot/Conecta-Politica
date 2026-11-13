@@ -311,3 +311,56 @@ export function normalizarCeaps(d: CeapsApi) {
     urlDocumento: null,
   };
 }
+
+// ---------- Tramitação no Senado (detalhe do processo) ----------
+
+type Colegiado = { sigla?: string; nome?: string } | null | undefined;
+type ProcessoDetalhe = {
+  autuacoes?: { situacoes?: { descricao?: string; inicio?: string; colegiado?: Colegiado }[] }[];
+  despachos?: { data?: string; cancelado?: string; tipoMotivacao?: string; providencias?: { descricao?: string; unidadesDestinatarias?: { colegiado?: Colegiado }[] }[] }[];
+  deliberacao?: { data?: string; tipoDeliberacao?: string; destino?: string } | null;
+};
+
+/** Primeira letra maiúscula, resto como na fonte em minúsculas ("AGUARDANDO DESPACHO" → "Aguardando despacho"). */
+const NOMES_PROPRIOS: [RegExp, string][] = [
+  [/câmara dos deputados/g, "Câmara dos Deputados"], [/senado federal/g, "Senado Federal"], [/congresso nacional/g, "Congresso Nacional"],
+  [/presidente da república/g, "Presidente da República"], [/presidência da república/g, "Presidência da República"],
+  [/\bplenário\b/g, "Plenário"], [/\bmesa\b/g, "Mesa"], [/\bcomissão mista\b/g, "Comissão Mista"],
+];
+const frase = (s: string) => {
+  let t = s.trim().toLowerCase();
+  for (const [re, nome] of NOMES_PROPRIOS) t = t.replace(re, nome);
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+/**
+ * Linha do tempo da tramitação no Senado: situações de cada autuação, despachos às comissões e a deliberação final.
+ * Ordem cronológica; a sequência é a posição na lista (a fonte é a referência completa a cada coleta).
+ */
+export function tramitacoesSenado(det: ProcessoDetalhe) {
+  const itens: { data: string; orgaoSigla: string | null; descricao: string; situacao: string | null }[] = [];
+  for (const a of det.autuacoes ?? []) {
+    for (const s of a.situacoes ?? []) {
+      if (!s.inicio || !s.descricao) continue;
+      // A situação já é o próprio título do evento: não repete no campo "situação"
+      itens.push({ data: s.inicio, orgaoSigla: s.colegiado?.sigla ?? null, descricao: frase(s.descricao), situacao: null });
+    }
+  }
+  for (const d of det.despachos ?? []) {
+    if (!d.data || d.cancelado === "Sim") continue;
+    const destinos = (d.providencias ?? []).flatMap((p) => (p.unidadesDestinatarias ?? []).map((u) => u.colegiado?.sigla).filter(Boolean));
+    if (!destinos.length) continue;
+    itens.push({ data: d.data, orgaoSigla: "PLEN", descricao: `Despacho: análise ${destinos.length > 1 ? "pelas comissões" : "pela comissão"} ${destinos.join(", ")}`, situacao: null });
+  }
+  if (det.deliberacao?.data && det.deliberacao.tipoDeliberacao) {
+    itens.push({ data: det.deliberacao.data, orgaoSigla: "PLEN", descricao: `${det.deliberacao.tipoDeliberacao}${det.deliberacao.destino ? ` — ${det.deliberacao.destino}` : ""}`, situacao: null });
+  }
+  // Ordena por data (estável: em datas iguais mantém a ordem da fonte)
+  return itens
+    .map((x, i) => ({ ...x, i }))
+    .sort((a, b) => a.data.localeCompare(b.data) || a.i - b.i)
+    .map((x, sequencia) => ({
+      casa: "SF", sequencia, dataHora: deBrasilia(x.data.slice(0, 10))!, orgaoSigla: x.orgaoSigla,
+      descricao: x.descricao, situacao: x.situacao, despacho: null, url: null,
+    }));
+}

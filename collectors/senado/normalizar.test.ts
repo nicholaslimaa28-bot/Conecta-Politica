@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   normalizarSenador, normalizarLicencas, sessoesDaAgenda, normalizarSessao, reunioesDaAgenda, normalizarReuniao,
-  classificarVotoSenado, normalizarVotacaoSenado, normalizarProcesso, normalizarCeaps, statusSessao,
+  classificarVotoSenado, normalizarVotacaoSenado, normalizarProcesso, normalizarCeaps, statusSessao, tramitacoesSenado,
 } from "./normalizar";
 
 const fx = (nome: string) => JSON.parse(readFileSync(`fixtures/senado/${nome}.json`, "utf8"));
@@ -95,5 +95,30 @@ describe("despesas CEAPS", () => {
     const pf = normalizarCeaps({ ...fx("ceaps")[0], cpfCnpj: "123.456.789-01", fornecedor: "FULANO 12345678901" });
     expect(pf.fornecedorCnpj).toBeNull();
     expect(pf.fornecedorNome).toBe("FULANO");
+  });
+});
+
+describe("tramitação no Senado", () => {
+  it("monta a linha do tempo com situações, despacho e deliberação", () => {
+    const t = tramitacoesSenado(fx("processo_det"));
+    expect(t.length).toBeGreaterThanOrEqual(3);
+    expect(t[0]).toMatchObject({ casa: "SF", sequencia: 0, orgaoSigla: "PLEN", descricao: "Aguardando despacho" });
+    expect(t.some((x) => x.descricao === "Despacho: análise pela comissão CCJ")).toBe(true);
+    expect(t.at(-1)!.descricao).toBe("Aprovada pelo Plenário — À promulgação");
+    // ordem cronológica e sequência contínua
+    for (let i = 1; i < t.length; i++) {
+      expect(t[i].dataHora.getTime()).toBeGreaterThanOrEqual(t[i - 1].dataHora.getTime());
+      expect(t[i].sequencia).toBe(i);
+    }
+  });
+
+  it("mantém nomes próprios com maiúscula", () => {
+    const t = tramitacoesSenado({ autuacoes: [{ situacoes: [{ descricao: "REMETIDA À CÂMARA DOS DEPUTADOS", inicio: "2026-08-11" }, { descricao: "INCLUÍDA EM ORDEM DO DIA DO PLENÁRIO", inicio: "2026-08-10" }] }] });
+    expect(t.map((x) => x.descricao)).toEqual(["Incluída em ordem do dia do Plenário", "Remetida à Câmara dos Deputados"]);
+    expect(t[0].situacao).toBeNull();
+  });
+
+  it("ignora despachos cancelados e dados incompletos", () => {
+    expect(tramitacoesSenado({ despachos: [{ data: "2026-01-01", cancelado: "Sim", providencias: [{ unidadesDestinatarias: [{ colegiado: { sigla: "CCJ" } }] }] }], autuacoes: [{ situacoes: [{ descricao: "X" }] }] })).toEqual([]);
   });
 });

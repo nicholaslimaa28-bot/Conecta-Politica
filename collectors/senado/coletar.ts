@@ -9,8 +9,9 @@ import {
 } from "../comum";
 import {
   API, API_ADM, normalizarSenador, normalizarLicencas, sessoesDaAgenda, normalizarSessao, reunioesDaAgenda,
-  normalizarReuniao, normalizarVotacaoSenado, normalizarProcesso, normalizarCeaps,
+  normalizarReuniao, normalizarVotacaoSenado, normalizarProcesso, normalizarCeaps, tramitacoesSenado,
 } from "./normalizar";
+import { sql } from "@/lib/db";
 import { hojeBrasilia, somarDias } from "@/lib/tempo";
 
 const json = <T>(url: string) => buscarJson<T>(url.includes("?") || url.endsWith(".json") ? url : `${url}.json`, { aceitar: [404] });
@@ -178,5 +179,43 @@ export const autoria = (desdeParam?: string) =>
           c.lidos++;
         }
       }
+    });
+  });
+
+// ---------------- Tramitação no Senado (detalhe do processo) ----------------
+
+/**
+ * Atualiza a tramitação no Senado das proposições relevantes: seguidas por alguém, votadas no Senado/Congresso
+ * nos últimos 30 dias, que viraram lei há pouco, com veto pendente, ou alteradas na última semana sem tramitação.
+ * O detalhe do processo é a referência completa: a tramitação do Senado da proposição é substituída.
+ */
+export const tramitacoes = (limite = 400) =>
+  executarTarefa("senado", "tramitacoes", async (c) => {
+    // Prioridade: 1) seguidas, 2) votadas no Senado/Congresso, 3) lei recente ou veto pendente, 4) alteradas sem tramitação
+    const alvos = await sql<{ id: number; idSenado: number }[]>`
+      SELECT id, "idSenado" FROM (
+        SELECT p.id, p.id_senado AS "idSenado", p.atualizado_em,
+          CASE
+            WHEN EXISTS (SELECT 1 FROM inscricao i WHERE i.alvo_tipo = 'proposicao' AND i.alvo_id = p.id) THEN 1
+            WHEN EXISTS (SELECT 1 FROM votacao v WHERE v.proposicao_id = p.id AND v.casa IN ('SF','CN') AND v.data_hora > now() - interval '30 days') THEN 2
+            WHEN p.data_norma > current_date - 30 OR EXISTS (SELECT 1 FROM veto ve WHERE ve.proposicao_id = p.id AND ve.em_tramitacao) THEN 3
+            WHEN p.atualizado_em > now() - interval '7 days' AND NOT EXISTS (SELECT 1 FROM tramitacao t WHERE t.proposicao_id = p.id AND t.casa = 'SF') THEN 4
+          END AS prioridade
+        FROM proposicao p WHERE p.id_senado IS NOT NULL
+      ) x WHERE prioridade IS NOT NULL
+      ORDER BY prioridade, atualizado_em DESC LIMIT ${limite}`;
+    await emLotes(alvos, 4, async ({ id, idSenado }) => {
+      type Det = Parameters<typeof tramitacoesSenado>[0] & Parameters<typeof normalizarProcesso>[0];
+      const det = await json<Det>(`${API}/processo/${idSenado}`);
+      if (!det || Array.isArray(det)) return;
+      const linhas = tramitacoesSenado(det).map((t) => ({ ...t, proposicaoId: id }));
+      await db.transaction(async (tx) => {
+        await tx.delete(s.tramitacao).where(and(eq(s.tramitacao.proposicaoId, id), eq(s.tramitacao.casa, "SF")));
+        if (linhas.length) await tx.insert(s.tramitacao).values(linhas);
+      });
+      // Situação atual no Senado (gera aviso de mudança para quem segue)
+      const n = normalizarProcesso(det, new Date());
+      if (n) await salvarProposicao(n);
+      c.lidos++;
     });
   });

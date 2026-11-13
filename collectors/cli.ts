@@ -31,6 +31,7 @@ const tarefas: Record<string, Tarefa> = {
   "senado:votacoes": (de, ate) => senado.votacoes(de, ate),
   "senado:despesas": (ano) => senado.despesas(ano ? Number(ano) : undefined),
   "senado:autoria": (desde) => senado.autoria(desde),
+  "senado:tramitacoes": (limite) => senado.tramitacoes(limite ? Number(limite) : undefined),
   "planalto:agenda": (de, ate) => planalto.agenda(de, ate),
   "congresso:vetos": (...anos) => congresso.vetos(anos.length ? anos.map(Number) : undefined),
   "congresso:leis": (ano) => congresso.leis(ano ? Number(ano) : undefined),
@@ -44,7 +45,7 @@ const rotinas: Record<string, string[]> = {
   frequente: ["camara:agenda", "senado:agenda", "camara:votacoes", "senado:votacoes", "planalto:agenda", "alertas:enviar"],
   diaria: [
     "camara:cadastro", "senado:cadastro", "camara:despesas", "senado:despesas",
-    "congresso:vetos", "congresso:leis", "congresso:mpvs", "camara:tramitacoes",
+    "congresso:vetos", "congresso:leis", "congresso:mpvs", "camara:tramitacoes", "senado:tramitacoes",
     // Por último, as mais lentas (513 deputados cada)
     "camara:presenca", "senado:autoria", "camara:autoria", "alertas:enviar",
   ],
