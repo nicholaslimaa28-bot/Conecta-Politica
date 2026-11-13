@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       rotina:
-        description: "Rotina ou tarefa (frequente, diaria, inicial, camara:votacoes...)"
+        description: "Rotina ou tarefa, com argumentos opcionais (ex.: frequente, diaria, inicial, camara:autoria 2023-02-01)"
         required: true
         default: frequente
 
@@ -41,7 +41,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then R="${{ inputs.rotina }}";
           elif [ "${{ github.event.schedule }}" = "10 9 * * *" ]; then R=diaria; else R=frequente; fi
-          npm run coletar -- "$R"
+          # Sem aspas de propósito: permite "tarefa arg1 arg2" (entrada só de quem administra o repositório)
+          npm run coletar -- $R
       # Respostas brutas desta execução ficam guardadas por 30 dias para auditoria
       - uses: actions/upload-artifact@v4
         if: always()
