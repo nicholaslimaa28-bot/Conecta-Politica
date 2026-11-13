@@ -8,6 +8,7 @@ if (existsSync(".env")) process.loadEnvFile(".env");
 
 const { encerrar } = await import("@/lib/db");
 const camara = await import("./camara/coletar");
+const { hojeBrasilia, somarDias } = await import("@/lib/tempo");
 const senado = await import("./senado/coletar");
 const planalto = await import("./planalto/coletar");
 const congresso = await import("./congresso/coletar");
@@ -19,6 +20,8 @@ const tarefas: Record<string, Tarefa> = {
   "camara:cadastro": () => camara.cadastro(),
   "camara:agenda": (de, ate) => camara.agenda(de, ate),
   "camara:votacoes": (de, ate) => camara.votacoes(de, ate),
+  // Recoleta dos últimos 30 dias: pega votos nominais que a Câmara publica com atraso
+  "camara:votacoes30": () => camara.votacoes(somarDias(hojeBrasilia(), -30), hojeBrasilia()),
   "camara:despesas": (ano) => camara.despesas(ano ? Number(ano) : undefined),
   "camara:presenca": (ano) => camara.presenca(ano ? Number(ano) : undefined),
   "camara:autoria": (desde) => camara.autoria(desde),
@@ -46,6 +49,7 @@ const rotinas: Record<string, string[]> = {
     "camara:presenca", "senado:autoria", "camara:autoria", "alertas:enviar",
   ],
 };
+rotinas.semanal = ["camara:votacoes30", "alertas:enviar"];
 rotinas.inicial = [...rotinas.diaria.slice(0, 2), ...rotinas.frequente, ...rotinas.diaria.slice(2)];
 
 const [nome, ...args] = process.argv.slice(2);

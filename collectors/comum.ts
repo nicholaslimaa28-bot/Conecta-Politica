@@ -174,12 +174,14 @@ export async function salvarProposicao(p: DadosProposicao): Promise<number> {
 type NovaVotacao = typeof s.votacao.$inferInsert;
 
 export async function salvarVotacao(v: NovaVotacao): Promise<{ id: number; nova: boolean }> {
-  const [antes] = await db.select({ id: s.votacao.id }).from(s.votacao).where(and(eq(s.votacao.casa, v.casa), eq(s.votacao.idFonte, v.idFonte)));
+  const [antes] = await db.select({ id: s.votacao.id, nominal: s.votacao.nominal }).from(s.votacao).where(and(eq(s.votacao.casa, v.casa), eq(s.votacao.idFonte, v.idFonte)));
   const [r] = await db.insert(s.votacao).values(v)
     .onConflictDoUpdate({ target: [s.votacao.casa, s.votacao.idFonte], set: v })
     .returning({ id: s.votacao.id });
-  if (!antes) {
-    await db.insert(s.mudanca).values({ tipo: "nova_votacao", entidade: "votacao", entidadeId: r.id, dados: { casa: v.casa, aprovada: v.aprovada, descricao: v.descricao } });
+  // Votação nova — ou já conhecida cujos votos individuais só agora foram publicados (a Câmara às vezes atrasa):
+  // nos dois casos, quem segue a proposição ou os parlamentares deve ser avisado
+  if (!antes || (!antes.nominal && v.nominal)) {
+    await db.insert(s.mudanca).values({ tipo: "nova_votacao", entidade: "votacao", entidadeId: r.id, dados: { casa: v.casa, aprovada: v.aprovada, descricao: v.descricao, votosPublicadosDepois: !!antes } });
   }
   return { id: r.id, nova: !antes };
 }

@@ -104,7 +104,8 @@ export const votacoes = (de = somarDias(hojeBrasilia(), -3), ate = hojeBrasilia(
     const mapa = await mapaParlamentares("CD");
     const lista = await todasPaginas<{ id: string }>(`${API}/votacoes?idOrgao=${PLENARIO}&dataInicio=${de}&dataFim=${ate}&ordem=ASC&ordenarPor=dataHoraRegistro`);
     const proposicoesVistas = new Map<number, number | null>();
-    await emLotes(lista, 2, async ({ id: idVot }) => {
+    // 4 simultâneas: a lentidão é a resposta da fonte; o ritmo de 2 req/s por servidor segue garantido em http.ts
+    await emLotes(lista, 4, async ({ id: idVot }) => {
       const det = await buscarJson<{ dados: Parameters<typeof normalizarVotacao>[0] }>(`${API}/votacoes/${idVot}`, { aceitar: [404] });
       if (!det) return;
       // 404 em /votos = votação simbólica, sem registro nominal
