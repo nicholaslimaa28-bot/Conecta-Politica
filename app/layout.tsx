@@ -18,6 +18,7 @@ const scriptPreferencias = `try{var t=localStorage.getItem('tema');if(t&&t!=='au
 
 const LINKS = [
   ["/", "Hoje"],
+  ["/brasilia-hoje", "Brasília Hoje"],
   ["/parlamentares", "Parlamentares"],
   ["/executivo", "Executivo"],
   ["/busca", "Busca"],

@@ -380,3 +380,40 @@ export async function mpvsRecentes(desde: string, limite = 20) {
     SELECT sigla, numero, ano, slug, ementa, situacao_senado AS situacao, data_apresentacao::text AS data, norma_gerada AS "normaGerada"
     FROM proposicao WHERE sigla = 'MPV' AND data_apresentacao >= ${desde} ORDER BY data_apresentacao DESC, numero DESC LIMIT ${limite}`;
 }
+
+// ---------------- Resumo "Brasília Hoje" ----------------
+
+import type { DadosResumo } from "@/lib/resumo";
+
+/** Todos os dados de um dia (horário de Brasília) para o resumo. */
+export async function dadosDoDia(dia: string): Promise<DadosResumo> {
+  const inicio = sql`(${dia}::date)::timestamp AT TIME ZONE 'America/Sao_Paulo'`;
+  const fim = sql`(${dia}::date + 1)::timestamp AT TIME ZONE 'America/Sao_Paulo'`;
+  const [votacoes, leis, vetos, mpvs, sessoes, agenda] = await Promise.all([
+    sql<DadosResumo["votacoes"]>`
+      SELECT v.id, v.casa, v.descricao, v.aprovada, v.nominal, v.placar_sim AS "placarSim", v.placar_nao AS "placarNao",
+        CASE WHEN p.id IS NULL THEN NULL ELSE json_build_object('sigla', p.sigla, 'numero', p.numero, 'ano', p.ano, 'slug', p.slug, 'apelido', p.apelido) END AS proposicao
+      FROM votacao v LEFT JOIN proposicao p ON p.id = v.proposicao_id
+      WHERE v.data_hora >= ${inicio} AND v.data_hora < ${fim} ORDER BY v.data_hora`,
+    sql<DadosResumo["leis"]>`
+      SELECT n.nome, n.ementa, n.url,
+        CASE WHEN p.id IS NULL THEN NULL ELSE json_build_object('sigla', p.sigla, 'numero', p.numero, 'ano', p.ano, 'slug', p.slug) END AS proposicao
+      FROM norma n LEFT JOIN proposicao p ON p.id = n.proposicao_id WHERE n.data_assinatura = ${dia} ORDER BY n.numero`,
+    sql<DadosResumo["vetos"]>`
+      SELECT v.numero, v.ano, v.total, v.assunto,
+        CASE WHEN p.id IS NULL THEN NULL ELSE json_build_object('sigla', p.sigla, 'numero', p.numero, 'ano', p.ano, 'slug', p.slug) END AS proposicao
+      FROM veto v LEFT JOIN proposicao p ON p.id = v.proposicao_id WHERE v.data_publicacao = ${dia} ORDER BY v.numero`,
+    sql<DadosResumo["mpvs"]>`SELECT numero, ano, slug, ementa FROM proposicao WHERE sigla = 'MPV' AND data_apresentacao = ${dia} ORDER BY numero`,
+    sql<DadosResumo["sessoes"]>`
+      SELECT id, casa, titulo, inicio, status, deliberativa,
+        coalesce((SELECT array_agg(x->>'titulo') FROM jsonb_array_elements(coalesce(pauta, '[]'::jsonb)) x), '{}') AS "pautaTitulos"
+      FROM evento WHERE inicio >= ${inicio} AND inicio < ${fim}
+        AND (orgaos LIKE 'Plenário%' OR ',' || replace(coalesce(orgaos, ''), ' ', '') || ',' LIKE '%,PLEN,%')
+      ORDER BY inicio`,
+    agendaPresidente(dia),
+  ]);
+  return {
+    votacoes, leis, vetos, mpvs, sessoes,
+    agendaPresidente: agenda.dia?.publicada ? agenda.compromissos.map((c) => ({ titulo: c.titulo, inicioTexto: c.inicioTexto, horaLocal: c.horaLocal })) : null,
+  };
+}

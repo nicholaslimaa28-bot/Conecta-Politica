@@ -21,6 +21,8 @@ describe("validação de assinaturas", () => {
   it("valida o alvo", () => {
     expect(validarAlvo("parlamentar", "12")).toEqual({ tipo: "parlamentar", id: 12 });
     expect(validarAlvo("tema", 1)).toBeNull();
+    expect(validarAlvo("resumo", 2)).toEqual({ tipo: "resumo", id: 2 });
+    expect(validarAlvo("resumo", 3)).toBeNull();
     expect(validarAlvo("proposicao", -1)).toBeNull();
     expect(validarAlvo("proposicao", "1.5")).toBeNull();
   });

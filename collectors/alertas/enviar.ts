@@ -62,13 +62,29 @@ async function destinosDe(m: Mudanca): Promise<Destino[]> {
   return out;
 }
 
-function configurarVapid(): boolean {
+export function configurarVapid(): boolean {
   const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, priv = process.env.VAPID_PRIVATE_KEY;
   if (!pub || !priv) return false;
   // O "subject" precisa ser mailto: ou https: (o serviço de push usa para contato em caso de abuso)
   const site = process.env.SITE_URL?.startsWith("https://") ? process.env.SITE_URL : "https://conecta-politica.vercel.app";
   webpush.setVapidDetails(process.env.COLETOR_EMAIL_CONTATO ? `mailto:${process.env.COLETOR_EMAIL_CONTATO}` : site, pub, priv);
   return true;
+}
+
+/** Envia um aviso a uma assinatura. Assinaturas expiradas (404/410) são apagadas. */
+export async function enviarAviso(a: { id: number; endpoint: string; p256dh: string; auth: string }, aviso: Aviso): Promise<"ok" | "expirada" | string> {
+  try {
+    await webpush.sendNotification({ endpoint: a.endpoint, keys: { p256dh: a.p256dh, auth: a.auth } }, JSON.stringify(aviso), { TTL: 86_400, urgency: "normal" });
+    await sql`UPDATE push_assinatura SET ultimo_envio = now() WHERE id = ${a.id}`;
+    return "ok";
+  } catch (e) {
+    const status = (e as { statusCode?: number }).statusCode;
+    if (status === 404 || status === 410) {
+      await sql`DELETE FROM push_assinatura WHERE id = ${a.id}`; // inscrições caem em cascata
+      return "expirada";
+    }
+    return `HTTP ${status ?? "?"}`;
+  }
 }
 
 export const enviar = () =>
@@ -93,27 +109,16 @@ export const enviar = () =>
       const ja = new Set((await sql<{ m: number }[]>`SELECT mudanca_id AS m FROM notificacao WHERE assinatura_id = ${assinaturaId} AND mudanca_id IN ${sql(destinos.map((d) => d.mudancaId))}`).map((x) => x.m));
       const novos = destinos.filter((d) => !ja.has(d.mudancaId));
       if (!novos.length) continue;
-      const [a] = await sql<{ endpoint: string; p256dh: string; auth: string }[]>`SELECT endpoint, p256dh, auth FROM push_assinatura WHERE id = ${assinaturaId}`;
+      const [a] = await sql<{ id: number; endpoint: string; p256dh: string; auth: string }[]>`SELECT id, endpoint, p256dh, auth FROM push_assinatura WHERE id = ${assinaturaId}`;
       if (!a) continue;
       let erro: string | null = null;
       for (const aviso of agrupar(novos.map((d) => d.aviso))) {
-        try {
-          await webpush.sendNotification({ endpoint: a.endpoint, keys: { p256dh: a.p256dh, auth: a.auth } }, JSON.stringify(aviso), { TTL: 86_400, urgency: "normal" });
-          c.alterados++;
-        } catch (e) {
-          const status = (e as { statusCode?: number }).statusCode;
-          if (status === 404 || status === 410) {
-            // Assinatura expirada ou cancelada no navegador: remove (inscrições caem em cascata)
-            await sql`DELETE FROM push_assinatura WHERE id = ${assinaturaId}`;
-            erro = "assinatura expirada";
-            break;
-          }
-          erro = `HTTP ${status ?? "?"}`;
-        }
+        const r = await enviarAviso(a, aviso);
+        if (r === "ok") c.alterados++;
+        else { erro = r; break; }
       }
-      if (erro === "assinatura expirada") continue;
+      if (erro === "expirada") continue;
       await sql`INSERT INTO notificacao ${sql(novos.map((d) => ({ assinatura_id: assinaturaId, mudanca_id: d.mudancaId, enviado_em: erro ? null : new Date(), erro })))} ON CONFLICT DO NOTHING`;
-      if (!erro) await sql`UPDATE push_assinatura SET ultimo_envio = now() WHERE id = ${assinaturaId}`;
     }
     await sql`UPDATE mudanca SET processado_em = now() WHERE id IN ${sql(pendentes.map((m) => m.id))}`;
     c.lidos = pendentes.length;

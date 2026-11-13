@@ -12,6 +12,7 @@ const senado = await import("./senado/coletar");
 const planalto = await import("./planalto/coletar");
 const congresso = await import("./congresso/coletar");
 const alertas = await import("./alertas/enviar");
+const resumoDiario = await import("./alertas/resumo");
 
 type Tarefa = (...args: string[]) => Promise<unknown>;
 const tarefas: Record<string, Tarefa> = {
@@ -32,6 +33,7 @@ const tarefas: Record<string, Tarefa> = {
   "congresso:leis": (ano) => congresso.leis(ano ? Number(ano) : undefined),
   "congresso:mpvs": (ano) => congresso.mpvs(ano ? Number(ano) : undefined),
   "alertas:enviar": () => alertas.enviar(),
+  "alertas:resumo": (edicao) => resumoDiario.resumo(edicao as "manha" | "noite"),
 };
 
 // Rotinas agrupam tarefas na ordem certa (cadastros antes de votos, por exemplo)

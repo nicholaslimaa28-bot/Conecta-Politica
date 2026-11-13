@@ -1,7 +1,9 @@
 // Regras dos alertas (Fase 4A): validação das assinaturas de Web Push e texto de cada aviso.
 // Funções puras, testadas em lib/alertas.test.ts. Os avisos são neutros: só fatos, com link.
 
-export const TIPOS_ALVO = ["parlamentar", "proposicao"] as const;
+export const TIPOS_ALVO = ["parlamentar", "proposicao", "resumo"] as const;
+/** Resumo "Brasília Hoje": alvoId 1 = edição da manhã (7h), 2 = edição da noite (20h). */
+export const RESUMO_MANHA = 1, RESUMO_NOITE = 2;
 export type TipoAlvo = (typeof TIPOS_ALVO)[number];
 
 /**
@@ -31,7 +33,9 @@ export function validarAssinatura(x: unknown): AssinaturaPush | null {
 export function validarAlvo(tipo: unknown, id: unknown): { tipo: TipoAlvo; id: number } | null {
   if (!TIPOS_ALVO.includes(tipo as TipoAlvo)) return null;
   const n = Number(id);
-  return Number.isInteger(n) && n > 0 ? { tipo: tipo as TipoAlvo, id: n } : null;
+  if (!Number.isInteger(n) || n <= 0) return null;
+  if (tipo === "resumo" && n !== RESUMO_MANHA && n !== RESUMO_NOITE) return null;
+  return { tipo: tipo as TipoAlvo, id: n };
 }
 
 // ---------------- Texto dos avisos ----------------

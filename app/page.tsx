@@ -96,6 +96,7 @@ async function Hoje() {
         <p className="text-suave">
           {formatarData(new Date(), { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · horário de Brasília
         </p>
+        <p className="mt-1 text-sm"><Link href="/brasilia-hoje">📰 Leia o resumo “Brasília Hoje”</Link> · edições às 7h e às 20h</p>
       </div>
 
       <Secao titulo="Plenários hoje" poder="legislativo">

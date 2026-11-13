@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { verificarSuporte, permissaoNotificacao, assinaturaAtual, assinar, chamarApi, type Suporte } from "@/lib/push-cliente";
 
-type Props = { alvoTipo: "parlamentar" | "proposicao"; alvoId: number; nome: string };
+type Props = { alvoTipo: "parlamentar" | "proposicao" | "resumo"; alvoId: number; nome: string };
 
 const AJUDA: Record<Exclude<Suporte, "ok" | "sem-chave">, string> = {
   "ios-instalar": "No iPhone, os alertas funcionam com o site na Tela de Início: toque em Compartilhar → Adicionar à Tela de Início e abra por lá.",
@@ -41,12 +41,12 @@ export function BotaoSeguir({ alvoTipo, alvoId, nome }: Props) {
         const sub = await assinaturaAtual();
         if (sub) await chamarApi({ acao: "deixar", endpoint: sub.endpoint, alvoTipo, alvoId });
         setSeguindo(false);
-        setMensagem(`Você deixou de seguir ${nome}.`);
+        setMensagem(alvoTipo === "resumo" ? `Você não vai mais receber ${nome}.` : `Você deixou de seguir ${nome}.`);
       } else {
         const sub = await assinar();
         await chamarApi({ acao: "seguir", assinatura: sub.toJSON(), alvoTipo, alvoId });
         setSeguindo(true);
-        setMensagem(`Pronto! Você vai receber avisos sobre ${nome} neste aparelho.`);
+        setMensagem(alvoTipo === "resumo" ? `Pronto! Você vai receber ${nome} neste aparelho.` : `Pronto! Você vai receber avisos sobre ${nome} neste aparelho.`);
       }
     } catch (e) {
       setMensagem((e as Error).message === "permissao-negada"
@@ -63,7 +63,7 @@ export function BotaoSeguir({ alvoTipo, alvoId, nome }: Props) {
       {suporte === "ok" ? (
         <button type="button" onClick={alternar} disabled={ocupado} aria-pressed={seguindo}
           className={`rounded border px-3 py-1.5 font-medium ${seguindo ? "border-legislativo bg-legislativo/10 text-legislativo" : "border-borda bg-superficie"}`}>
-          {ocupado ? "Aguarde…" : seguindo ? "✓ Seguindo" : "🔔 Seguir"}
+          {ocupado ? "Aguarde…" : alvoTipo === "resumo" ? (seguindo ? "✓ Recebendo" : "🔔 Receber") : seguindo ? "✓ Seguindo" : "🔔 Seguir"}
         </button>
       ) : (
         <p className="max-w-md text-suave">🔔 {AJUDA[suporte]}</p>

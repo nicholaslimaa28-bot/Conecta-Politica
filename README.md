@@ -24,7 +24,8 @@ Site de transparência que reúne, em linguagem simples, o que acontece hoje nos
 | Executivo: Diário Oficial (INLABS) | Fase 2C — aguarda o INLABS e o cadastro |
 | Judiciário (STF, DataJud) | Fase 3 — card com links oficiais |
 | Alertas: seguir parlamentar/proposição e receber notificação no celular (Web Push, sem cadastro) | ✅ Fase 4A |
-| Alertas por e-mail, Telegram e resumo "Brasília Hoje" | Fases 4B–4D |
+| Resumo "Brasília Hoje" (7h e 20h), com aviso opcional no celular | ✅ |
+| Alertas por e-mail e Telegram | Fases 4B–4C |
 
 ## Arquitetura
 

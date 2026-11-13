@@ -11,6 +11,9 @@ on:
     - cron: "7 11-23 * * 0,6"
     # Rotina diária (cadastros, despesas, presença, autoria, tramitação): 6h10 de Brasília
     - cron: "10 9 * * *"
+    # Resumo "Brasília Hoje": 7h e 20h de Brasília
+    - cron: "1 10 * * *"
+    - cron: "1 23 * * *"
   workflow_dispatch:
     inputs:
       rotina:
@@ -20,7 +23,7 @@ on:
 
 concurrency:
   # Filas separadas: uma execução manual não é descartada pela agendada seguinte
-  group: coleta-${{ github.event_name == 'workflow_dispatch' && 'manual' || (github.event.schedule == '10 9 * * *' && 'diaria' || 'frequente') }}
+  group: coleta-${{ github.event_name == 'workflow_dispatch' && 'manual' || (github.event.schedule == '10 9 * * *' && 'diaria') || ((github.event.schedule == '1 10 * * *' || github.event.schedule == '1 23 * * *') && 'resumo') || 'frequente' }}
   cancel-in-progress: false
 
 jobs:
@@ -43,7 +46,10 @@ jobs:
       - name: Coletar
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then R="${{ inputs.rotina }}";
-          elif [ "${{ github.event.schedule }}" = "10 9 * * *" ]; then R=diaria; else R=frequente; fi
+          elif [ "${{ github.event.schedule }}" = "10 9 * * *" ]; then R=diaria;
+          elif [ "${{ github.event.schedule }}" = "1 10 * * *" ]; then R="alertas:resumo manha";
+          elif [ "${{ github.event.schedule }}" = "1 23 * * *" ]; then R="alertas:resumo noite";
+          else R=frequente; fi
           # Sem aspas de propósito: permite "tarefa arg1 arg2" (entrada só de quem administra o repositório)
           npm run coletar -- $R
       # Respostas brutas desta execução ficam guardadas por 30 dias para auditoria
