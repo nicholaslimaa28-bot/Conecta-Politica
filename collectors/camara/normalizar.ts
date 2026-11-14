@@ -328,3 +328,40 @@ export function autorDoArquivo(r: Record<string, string>) {
   if (!idProposicao || !idDeputado) return null;
   return { idProposicao, idDeputado, proponente: r.proponente === "1" };
 }
+
+// ---------- Arquivos anuais de votações (carga histórica) ----------
+// Convertem as linhas dos CSVs para o formato da API v2, para reaproveitar normalizarVotacao/normalizarOrientacoes.
+
+type Linha = Record<string, string>;
+const PLENARIO_ID = "180";
+
+/** Linha de votacoes-{ano}.csv → formato da API (só votações do Plenário; demais devolvem null). */
+export function votacaoDoArquivo(r: Linha): Parameters<typeof normalizarVotacao>[0] | null {
+  if (r.idOrgao !== PLENARIO_ID && r.siglaOrgao !== "PLEN") return null;
+  if (!r.id) return null;
+  const idEvento = Number(r.idEvento);
+  return {
+    id: r.id, data: r.data, dataHoraRegistro: r.dataHoraRegistro || null, descricao: r.descricao,
+    aprovacao: r.aprovacao === "" ? null : Number(r.aprovacao), idEvento: idEvento > 0 ? idEvento : null,
+  };
+}
+
+/** Linha de votacoesVotos-{ano}.csv → voto no formato da API. */
+export function votoDoArquivo(r: Linha): Parameters<typeof normalizarVotacao>[1][number] | null {
+  const id = Number(r.deputado_id);
+  if (!r.idVotacao || !id || !r.voto) return null;
+  return { tipoVoto: r.voto, dataRegistroVoto: r.dataHoraVoto || null, deputado_: { id, siglaPartido: r.deputado_siglaPartido || null } };
+}
+
+/** Linha de votacoesOrientacoes-{ano}.csv → orientação no formato da API (blocos começam com "Bl "). */
+export function orientacaoDoArquivo(r: Linha): Parameters<typeof normalizarOrientacoes>[0][number] | null {
+  if (!r.idVotacao || !r.siglaBancada || !r.orientacao) return null;
+  return { orientacaoVoto: r.orientacao, codTipoLideranca: r.siglaBancada.startsWith("Bl ") ? "B" : "P", siglaPartidoBloco: r.siglaBancada };
+}
+
+/** Linha de votacoesProposicoes-{ano}.csv → proposição afetada pela votação. */
+export function proposicaoDaVotacaoArquivo(r: Linha) {
+  const id = Number(r.proposicao_id), numero = Number(r.proposicao_numero), ano = Number(r.proposicao_ano);
+  if (!r.idVotacao || !id || !r.proposicao_siglaTipo || !numero || !ano) return null;
+  return { idVotacao: r.idVotacao, id, siglaTipo: r.proposicao_siglaTipo, numero, ano, ementa: r.proposicao_ementa || null };
+}

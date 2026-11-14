@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { registrosCsv } from "@/lib/csv";
 import {
-  proposicaoDoArquivo, autorDoArquivo,
+  proposicaoDoArquivo, autorDoArquivo, votacaoDoArquivo, votoDoArquivo, orientacaoDoArquivo, proposicaoDaVotacaoArquivo,
   normalizarDeputado, normalizarEvento, normalizarPauta, normalizarVotacao, normalizarOrientacoes,
   normalizarProposicao, normalizarTramitacoes, normalizarDespesa, limparNomeFornecedor, lerPresencaPerfil,
   statusEvento, normalizarTipoVoto,
@@ -151,5 +151,33 @@ describe("arquivos anuais (autoria)", () => {
     const a = autorDoArquivo(ler("proposicoesAutores_amostra.csv")[0])!;
     expect(a).toEqual({ idProposicao: 2653544, idDeputado: 74856, proponente: true });
     expect(autorDoArquivo({ idProposicao: "1", idDeputadoAutor: "" })).toBeNull();
+  });
+});
+
+describe("arquivos anuais de votações", () => {
+  const ler = (n: string) => [...registrosCsv(readFileSync(`fixtures/camara/${n}`, "utf8"))];
+
+  it("só aceita votações do Plenário e reaproveita o normalizador", () => {
+    const [comissao] = ler("votacoes_amostra.csv");
+    expect(comissao.siglaOrgao).toBe("CCP");
+    expect(votacaoDoArquivo(comissao)).toBeNull();
+    const plen = votacaoDoArquivo({ ...comissao, idOrgao: "180", siglaOrgao: "PLEN", idEvento: "83266", aprovacao: "1" })!;
+    expect(plen).toMatchObject({ id: "2585316-23", aprovacao: 1, idEvento: 83266 });
+    const votos = ler("votacoesVotos_amostra.csv").map(votoDoArquivo).filter((x) => x !== null);
+    const n = normalizarVotacao(plen, votos, agora);
+    expect(n.votacao.nominal).toBe(true);
+    expect(n.votos[0]).toMatchObject({ idDeputado: 204501, partido: "PT", tipoVoto: "nao" });
+    expect(n.idEventoFonte).toBe("83266");
+  });
+
+  it("orientações: federação como partido, bloco como bloco", () => {
+    const o = ler("votacoesOrientacoes_amostra.csv").map(orientacaoDoArquivo).filter((x) => x !== null);
+    expect(o[0]).toMatchObject({ siglaPartidoBloco: "Fdr PT-PCdoB-PV", codTipoLideranca: "P" });
+    expect(orientacaoDoArquivo({ idVotacao: "1", siglaBancada: "Bl UniPpPsd...", orientacao: "Sim" })!.codTipoLideranca).toBe("B");
+  });
+
+  it("proposição afetada", () => {
+    const p = proposicaoDaVotacaoArquivo(ler("votacoesProposicoes_amostra.csv")[0])!;
+    expect(p).toMatchObject({ idVotacao: "104333-87", id: 104333, siglaTipo: "PL", numero: 11, ano: 2003 });
   });
 });

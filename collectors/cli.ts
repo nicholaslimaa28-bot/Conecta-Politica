@@ -21,6 +21,7 @@ const tarefas: Record<string, Tarefa> = {
   "camara:agenda": (de, ate) => camara.agenda(de, ate),
   "camara:votacoes": (de, ate) => camara.votacoes(de, ate),
   // Recoleta dos últimos 30 dias: pega votos nominais que a Câmara publica com atraso
+  "camara:votacoes-ano": (ano) => camara.votacoesArquivos(ano ? Number(ano) : undefined),
   "camara:votacoes30": () => camara.votacoes(somarDias(hojeBrasilia(), -30), hojeBrasilia()),
   "camara:despesas": (ano) => camara.despesas(ano ? Number(ano) : undefined),
   "camara:presenca": (ano) => camara.presenca(ano ? Number(ano) : undefined),
@@ -64,7 +65,7 @@ const rotinas: Record<string, string[]> = {
   ],
 };
 rotinas.semanal = ["camara:votacoes30", "alertas:enviar"];
-rotinas.inicial = [...rotinas.diaria.slice(0, 2), ...rotinas.frequente, "senado:votacoes-ano", ...rotinas.diaria.slice(2)];
+rotinas.inicial = [...rotinas.diaria.slice(0, 2), ...rotinas.frequente, "senado:votacoes-ano", "camara:votacoes-ano", ...rotinas.diaria.slice(2)];
 
 const [nome, ...args] = process.argv.slice(2);
 const lista = nome && rotinas[nome] ? rotinas[nome] : nome && tarefas[nome] ? [nome] : null;

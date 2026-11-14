@@ -11,7 +11,7 @@ import {
 import {
   API, normalizarDeputado, normalizarEvento, normalizarPauta, normalizarVotacao, normalizarOrientacoes,
   normalizarProposicao, normalizarTramitacoes, normalizarDespesa, lerPresencaPerfil,
-  proposicaoDoArquivo, autorDoArquivo,
+  proposicaoDoArquivo, autorDoArquivo, votacaoDoArquivo, votoDoArquivo, orientacaoDoArquivo, proposicaoDaVotacaoArquivo,
 } from "./normalizar";
 import { hojeBrasilia, somarDias } from "@/lib/tempo";
 import { slugProposicao, limpar } from "@/lib/texto";
@@ -261,4 +261,65 @@ export const tramitacoesRecentes = (dias = 2) =>
     await emLotes(lista.filter((p) => conhecidas.has(p.id)), 2, async (p) => {
       try { await coletarProposicao(p.id); c.lidos++; } catch (e) { if (!(e instanceof ErroHttp)) throw e; }
     });
+  });
+
+// ---------------- Carga histórica das votações do Plenário (arquivos anuais) ----------------
+
+/**
+ * Votações do Plenário de um ano inteiro pelos arquivos de dados abertos: votacoes, votacoesVotos,
+ * votacoesOrientacoes e votacoesProposicoes. Não gera avisos (são votações passadas).
+ * Votos de quem não é deputado em exercício/cadastrado no banco ficam de fora.
+ */
+export const votacoesArquivos = (ano = Number(hojeBrasilia().slice(0, 4))) =>
+  executarTarefa("camara", `votacoes_arquivos_${ano}`, async (c) => {
+    const base = "https://dadosabertos.camara.leg.br/arquivos";
+    const ler = async (arq: string) =>
+      [...registrosCsv((await buscar(`${base}/${arq}/csv/${arq}-${ano}.csv`, { accept: "text/csv", timeoutMs: 600_000 })).corpo.toString("utf8"))];
+    const votacoesPlen = new Map<string, NonNullable<ReturnType<typeof votacaoDoArquivo>>>();
+    for (const r of await ler("votacoes")) {
+      const v = votacaoDoArquivo(r);
+      if (v) votacoesPlen.set(v.id, v);
+    }
+    const agrupar = <T,>(linhas: Record<string, string>[], f: (r: Record<string, string>) => T | null) => {
+      const m = new Map<string, T[]>();
+      for (const r of linhas) {
+        if (!votacoesPlen.has(r.idVotacao)) continue;
+        const x = f(r);
+        if (x) m.set(r.idVotacao, [...(m.get(r.idVotacao) ?? []), x]);
+      }
+      return m;
+    };
+    const votos = agrupar(await ler("votacoesVotos"), votoDoArquivo);
+    const orients = agrupar(await ler("votacoesOrientacoes"), orientacaoDoArquivo);
+    const props = agrupar(await ler("votacoesProposicoes"), proposicaoDaVotacaoArquivo);
+
+    // Proposições afetadas: gravadas em lote (sem avisos), preferindo a principal (PL, PEC...) quando há várias
+    const PRINCIPAIS = ["PEC", "PLP", "PL", "MPV", "PDL", "PLV", "PLN"];
+    const escolhida = new Map<string, NonNullable<ReturnType<typeof proposicaoDaVotacaoArquivo>>>();
+    for (const [idVot, lista] of props) {
+      escolhida.set(idVot, lista.find((p) => PRINCIPAIS.includes(p.siglaTipo)) ?? lista[0]);
+    }
+    const agora = new Date();
+    const unicas = [...new Map([...escolhida.values()].map((p) => [p.id, p])).values()];
+    const idsProp = await salvarProposicoesEmLote(unicas.map((p) => ({
+      sigla: p.siglaTipo, numero: p.numero, ano: p.ano, idCamara: p.id, ementa: limpar(p.ementa),
+      slug: slugProposicao(p.siglaTipo, p.numero, p.ano), atualizadoEm: agora,
+    })));
+
+    const mapa = await mapaParlamentares("CD");
+    await emLotes([...votacoesPlen.values()], 4, async (v) => {
+      const n = normalizarVotacao(v, votos.get(v.id) ?? [], agora);
+      const prop = escolhida.get(v.id);
+      const eventoId = n.idEventoFonte ? await idEvento("CD", n.idEventoFonte) : null;
+      const { id } = await salvarVotacao({ ...n.votacao, eventoId, proposicaoId: prop ? idsProp.get(prop.id) ?? null : null }, { semAviso: true });
+      if (n.votacao.nominal || orients.has(v.id)) {
+        const linhasVoto = n.votos.flatMap((x) => {
+          const parlamentarId = mapa.get(x.idDeputado);
+          return parlamentarId ? [{ votacaoId: id, parlamentarId, partido: x.partido, tipoVoto: x.tipoVoto, tipoVotoOriginal: x.tipoVotoOriginal, registradoEm: x.registradoEm }] : [];
+        });
+        await substituirFilhos(id, linhasVoto, normalizarOrientacoes(orients.get(v.id) ?? []).map((o) => ({ ...o, votacaoId: id })));
+      }
+      c.lidos++;
+    });
+    console.log(`[votações CD ${ano}] ${votacoesPlen.size} votações do Plenário, ${[...votacoesPlen.keys()].filter((k) => votos.has(k)).length} nominais`);
   });
